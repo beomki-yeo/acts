@@ -11,7 +11,12 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 # determine project version; sets _acts_version and _acts_commit_hash
 include(ActsRetrieveVersion)
 
-project(Acts VERSION ${_acts_version} LANGUAGES CXX)
+project(Acts VERSION ${_acts_version} LANGUAGES CUDA CXX)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+set(CMAKE_CUDA_STANDARD 11)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_FLAGS -arch=sm_61)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 --expt-relaxed-constexpr")
 
 # build options
 
@@ -27,7 +32,7 @@ option(ACTS_BUILD_FATRAS "Build FAst TRAcking Simulation package" OFF)
 option(ACTS_BUILD_LEGACY "Build legacy package" OFF)
 option(ACTS_BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(ACTS_BUILD_EXAMPLES "Build examples" OFF)
-option(ACTS_BUILD_UNITTESTS "Build unit tests" OFF)
+option(ACTS_BUILD_UNITTESTS "Build unit tests" ON)
 option(ACTS_BUILD_INTEGRATIONTESTS "Build integration tests" OFF)
 option(ACTS_BUILD_DOC "Build documentation" OFF)
 
