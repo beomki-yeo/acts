@@ -67,7 +67,8 @@ std::vector<const SpacePoint*> readFile(std::string filename) {
 }
 
 int main() {
-  std::vector<const SpacePoint*> spVec = readFile("sp.txt");
+  //std::vector<const SpacePoint*> spVec = readFile("sp.txt");
+  std::vector<const SpacePoint*> spVec = readFile("sample_1000k.txt");
   std::cout << "size of read SP: " << spVec.size() << std::endl;
 
   Acts::SeedfinderConfig<SpacePoint> config;
