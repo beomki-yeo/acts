@@ -9,13 +9,16 @@
 #include <cmath>
 #include <numeric>
 #include <type_traits>
+#include <algorithm>
+#include <chrono>
+#include <Acts/Seeding/SeedfinderKernels.cuh>
 
-#include "Acts/Seeding/SeedFilter.hpp"
+#define WARP_SIZE 64
 
 namespace Acts {
 
-template <typename external_spacepoint_t>
-Seedfinder<external_spacepoint_t>::Seedfinder(
+  template <typename external_spacepoint_t, typename architecture_t>
+  Seedfinder<external_spacepoint_t, architecture_t>::Seedfinder(
     Acts::SeedfinderConfig<external_spacepoint_t> config)
     : m_config(std::move(config)) {
   // calculation of scattering using the highland formula
@@ -32,19 +35,38 @@ Seedfinder<external_spacepoint_t>::Seedfinder(
       std::pow(m_config.minPt * 2 / m_config.pTPerHelixRadius, 2);
   m_config.pT2perRadius =
       std::pow(m_config.highland / m_config.pTPerHelixRadius, 2);
-}
+  }
 
-template <typename external_spacepoint_t>
-template <typename sp_range_t>
-std::vector<Seed<external_spacepoint_t>>
-Seedfinder<external_spacepoint_t>::createSeedsForGroup(
+  template< typename external_spacepoint_t, typename architecture_t>
+  template< typename T, typename sp_range_t>
+  typename std::enable_if< std::is_same<T, Acts::CPU>::value, std::vector<Seed<external_spacepoint_t> > >::type
+  Seedfinder<external_spacepoint_t, architecture_t>::createSeedsForGroup(
     sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const {
   std::vector<Seed<external_spacepoint_t>> outputVec;
+
+  double doublet_time = 0;
+  double triplet_time = 0;
+
+  // ----- Statistics Test ----- //
+  int i_bot = 0;
+  int i_mid = 0;
+  int i_top = 0;
+
+  for (auto sp: bottomSPs) i_bot++;
+  for (auto sp: middleSPs) i_mid++;
+  for (auto sp: topSPs)    i_top++;
+
+  std::cout <<"Bottom Hits: " << i_bot << "  Middle Hits: " << i_mid << "  Top Hits: " << i_top << std::endl;
+  /////////////////////////////////
+
   for (auto spM : middleSPs) {
+
     float rM = spM->radius();
     float zM = spM->z();
     float varianceRM = spM->varianceR();
     float varianceZM = spM->varianceZ();
+
+    auto start_doublet = std::chrono::system_clock::now();
 
     // bottom space point
     std::vector<const InternalSpacePoint<external_spacepoint_t>*>
@@ -106,6 +128,16 @@ Seedfinder<external_spacepoint_t>::createSeedsForGroup(
     if (compatTopSP.empty()) {
       continue;
     }
+  
+    std::cout << "  Compat Bottom Hits: " << compatBottomSP.size() << "   Compat Top Hits: " << compatTopSP.size() << std::endl;
+
+    auto end_doublet = std::chrono::system_clock::now();
+
+    std::chrono::duration<double> elapsed_seconds_doublet = end_doublet - start_doublet;
+    doublet_time+=elapsed_seconds_doublet.count();
+
+    auto start_triplet = std::chrono::system_clock::now();
+
     // contains parameters required to calculate circle with linear equation
     // ...for bottom-middle
     std::vector<LinCircle> linCircleBottom;
@@ -126,6 +158,7 @@ Seedfinder<external_spacepoint_t>::createSeedsForGroup(
     size_t numTopSP = compatTopSP.size();
 
     for (size_t b = 0; b < numBotSP; b++) {
+
       auto lb = linCircleBottom[b];
       float Zob = lb.Zo;
       float cotThetaB = lb.cotTheta;
@@ -228,6 +261,7 @@ Seedfinder<external_spacepoint_t>::createSeedsForGroup(
           impactParameters.push_back(Im);
         }
       }
+
       if (!topSpVec.empty()) {
         std::vector<std::pair<
             float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
@@ -240,13 +274,96 @@ Seedfinder<external_spacepoint_t>::createSeedsForGroup(
                            std::make_move_iterator(sameTrackSeeds.end()));
       }
     }
+
+    auto end_triplet = std::chrono::system_clock::now();
+
+    std::chrono::duration<double> elapsed_seconds_triplet = end_triplet - start_triplet;
+    triplet_time+=elapsed_seconds_triplet.count();
+
+    std::cout << elapsed_seconds_doublet.count() << "  " << elapsed_seconds_triplet.count() << "  " << std::endl;
+
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
   }
-  return outputVec;
-}
 
-template <typename external_spacepoint_t>
-void Seedfinder<external_spacepoint_t>::transformCoordinates(
+  std::cout << "Doublet Time: " << doublet_time << "  Triplet Time: " << triplet_time << std::endl;
+
+  return outputVec;
+  }
+
+  template< typename external_spacepoint_t, typename architecture_t>
+  template< typename T, typename sp_range_t>
+  typename std::enable_if< std::is_same<T, Acts::CUDA>::value, std::vector<Seed<external_spacepoint_t> > >::type
+  Seedfinder<external_spacepoint_t, architecture_t>::createSeedsForGroup(
+    sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const {
+  std::vector<Seed<external_spacepoint_t>> outputVec;
+
+  // ----- Algorithm 0. Matrix Flattening ----- //
+  std::vector<float> rBvec;
+  std::vector<float> zBvec;
+  std::vector<int> isBotCompat;
+
+  for (auto sp: bottomSPs){
+    rBvec.push_back(sp->radius());
+    zBvec.push_back(sp->z());
+    isBotCompat.push_back(true);
+  }
+
+  std::vector<float> rTvec;
+  std::vector<float> zTvec;
+  std::vector<int>  isTopCompat;
+
+  for (auto sp: topSPs){
+    rTvec.push_back(sp->radius());
+    zTvec.push_back(sp->z());
+    isTopCompat.push_back(true);
+  }
+
+  // ----- Algorithm 1. Doublet Search ----- //
+  
+  dim3 blockSize(WARP_SIZE*2,0,0); // 128
+  dim3 gridSize(64,0,0);
+  const int nHitsPerStream = blockSize.x*gridSize.x; // 8192
+
+  CUDA::Buffer<float> rB_cuda(rBvec.size());
+  CUDA::Buffer<float> zB_cuda(zBvec.size()); // rBvec.size() == zBvec.size()
+  CUDA::Buffer<int> isBotCompat_cuda(rBvec.size());
+
+  std::vector<cudaStream_t> streams;
+
+  for (auto sp: middleSPs){
+
+    float rM = sp->radius();
+    float zM = sp->z();
+    bool  isBottom = 1;
+
+    int offset   = 0;
+    while (true){
+
+      cudaStream_t aStream;
+      streams.push_back(aStream);
+      rB_cuda.SetData(&rBvec[offset],nHitsPerStream,offset, streams.back());
+      zB_cuda.SetData(&zBvec[offset],nHitsPerStream,offset, streams.back());
+      isBotCompat_cuda.SetData(&isBotCompat[offset],nHitsPerStream,offset,streams.back());
+       
+      SeedfinderKernels::SearchDoublet( blockSize, gridSize, 
+					rB_cuda.data(offset), zB_cuda.data(offset), 
+					&rM, &zM, &isBottom, 
+					&m_config.deltaRMin, &m_config.deltaRMax, 
+					&m_config.cotThetaMax, &m_config.collisionRegionMin, &m_config.collisionRegionMax, 
+					isBotCompat_cuda.data(offset) );
+
+      offset += nHitsPerStream;
+      if (offset>=rBvec.size()) break;
+    }
+  }  
+ 
+  return outputVec;
+  }
+
+
+ 
+template <typename external_spacepoint_t, typename architecture_t>
+void Seedfinder<external_spacepoint_t, architecture_t>::transformCoordinates(
     std::vector<const InternalSpacePoint<external_spacepoint_t>*>& vec,
     const InternalSpacePoint<external_spacepoint_t>& spM, bool bottom,
     std::vector<LinCircle>& linCircleVec) const {

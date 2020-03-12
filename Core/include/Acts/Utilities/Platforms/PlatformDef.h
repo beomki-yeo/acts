@@ -1,8 +1,10 @@
-#ifndef MATRIX_MATRIXDEF
-#define MATRIX_MATRIXDEF
 
-#include "Acts/Utilities/Platforms/Matrix/CUDAMatrix.cu"
-#include "Acts/Utilities/Platforms/Matrix/CPUMatrix.hxx"
+#pragma once
+#ifndef PLATFORMDEF
+#define PLATFORMDEF
+
+#include "Acts/Utilities/Platforms/CUDABuffer.cu"
+#include "Acts/Utilities/Platforms/CPUBuffer.hxx"
 
 // Type definition for CUDAMatrix and CPUMatrix
 
@@ -11,6 +13,23 @@ namespace Acts{
 class CUDA{
 
 public:
+  
+  template<typename Var_t>
+  using Buffer = CUDABuffer<Var_t>;
+
+};
+  
+class CPU{
+
+public:
+
+  template<typename Var_t>
+  using Buffer = CPUBuffer<Var_t>;
+
+};
+
+  /*
+  public:
 
   template<typename Var_t, int row, int col>
   using MatrixX  = CUDAMatrix<Var_t, row, col>;
@@ -41,7 +60,7 @@ public:
   template<typename Var_t>
   using Vector3  = CPUMatrix<Var_t, 3, 1>; 
 };
-
+  */
 
 }
 

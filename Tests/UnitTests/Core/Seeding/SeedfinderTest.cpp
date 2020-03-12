@@ -26,6 +26,12 @@
 #include "ATLASCuts.hpp"
 #include "SpacePoint.hpp"
 
+// --- CUDA headers --- //
+#include "Acts/Utilities/Platforms/PlatformDef.h"
+#include "cuda.h"
+
+//template< class T = Acts::CPU >
+//typename std::enable_if<std::is_same<T, Acts::CPU >::value, std::vector<const SpacePoint*> >::type readFile(std::string filename) {
 std::vector<const SpacePoint*> readFile(std::string filename) {
   std::string line;
   int layer;
@@ -38,9 +44,10 @@ std::vector<const SpacePoint*> readFile(std::string filename) {
       std::stringstream ss(line);
       std::string linetype;
       ss >> linetype;
+      int index;
       float x, y, z, r, varianceR, varianceZ;
       if (linetype == "lxyz") {
-        ss >> layer >> x >> y >> z >> varianceR >> varianceZ;
+        ss >> index >> layer >> x >> y >> z >> varianceR >> varianceZ;
         r = std::sqrt(x * x + y * y);
         float f22 = varianceR;
         float wid = varianceZ;
@@ -67,8 +74,10 @@ std::vector<const SpacePoint*> readFile(std::string filename) {
 }
 
 int main() {
+
   //std::vector<const SpacePoint*> spVec = readFile("sp.txt");
   std::vector<const SpacePoint*> spVec = readFile("sample_1000k.txt");
+  //std::vector<const SpacePoint*> spVec = readFile("hits4seeding_21100.csv");
   std::cout << "size of read SP: " << spVec.size() << std::endl;
 
   Acts::SeedfinderConfig<SpacePoint> config;
@@ -99,7 +108,10 @@ int main() {
   Acts::ATLASCuts<SpacePoint> atlasCuts = Acts::ATLASCuts<SpacePoint>();
   config.seedFilter = std::make_unique<Acts::SeedFilter<SpacePoint>>(
       Acts::SeedFilter<SpacePoint>(sfconf, &atlasCuts));
-  Acts::Seedfinder<SpacePoint> a(config);
+  //Acts::Seedfinder<SpacePoint> a(config);
+  Acts::Seedfinder<SpacePoint, Acts::CPU> a(config);
+
+  Acts::Seedfinder<SpacePoint, Acts::CUDA> a_cuda(config);
 
   // covariance tool, sets covariances per spacepoint as required
   auto ct = [=](const SpacePoint& sp, float, float, float) -> Acts::Vector2D {
@@ -122,14 +134,40 @@ int main() {
                                                  bottomBinFinder, topBinFinder,
                                                  std::move(grid), config);
 
+
+
+  // --------- Test CUDA -------- //
+  
+  std::vector<std::vector<Acts::Seed<SpacePoint>>> seedVector_cuda;
+  int i_group_cuda = 0;
+  auto groupIt_cuda = spGroup.begin();
+  auto endOfGroups_cuda = spGroup.end();
+  for (; !(groupIt_cuda == endOfGroups_cuda); ++groupIt_cuda) {
+
+    //std::cout << "GroupID <CUDA>: " << i_group_cuda << std::endl;//"  " << groupIt_cuda.bottom().size() << "  " << groupIt_cuda.middle().size() << "  " << groupIt_cuda.top().size() << std::endl;
+
+    seedVector_cuda.push_back(a_cuda.createSeedsForGroup(
+        groupIt_cuda.bottom(), groupIt_cuda.middle(), groupIt_cuda.top()));
+
+    i_group_cuda++;
+  }
+  
+  // ---------------------------- //
+
   std::vector<std::vector<Acts::Seed<SpacePoint>>> seedVector;
+  int i_group =0;
   auto start = std::chrono::system_clock::now();
   auto groupIt = spGroup.begin();
   auto endOfGroups = spGroup.end();
   for (; !(groupIt == endOfGroups); ++groupIt) {
-    seedVector.push_back(a.createSeedsForGroup(
-        groupIt.bottom(), groupIt.middle(), groupIt.top()));
+    //std::cout << "GroupID <CPU>: " << i_group << std::endl;// << "  " << groupIt.bottom().size() << "  " << groupIt.middle().size() << "  " << groupIt.top().size() << std::endl;
+
+    seedVector.push_back(a.createSeedsForGroup(groupIt.bottom(), groupIt.middle(), groupIt.top()));
+    
+
+    i_group++;
   }
+
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
   std::cout << "time to create seeds: " << elapsed_seconds.count() << std::endl;
@@ -154,5 +192,6 @@ int main() {
       std::cout << std::endl;
     }
   }
+
   return 0;
 }
