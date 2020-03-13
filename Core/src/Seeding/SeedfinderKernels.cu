@@ -1,26 +1,46 @@
 #include "Acts/Seeding/SeedfinderKernels.cuh"
+#include "Acts/Utilities/Platforms/CUDA/CuUtils.cu"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <iostream>
 
-__global__ void cuSearchDoublet(const float* rBvec, const float* zBvec, const float* rM, const float* zM, const bool* isBottom,  const float* deltaRMin,  const float* deltaRMax, const float* cotThetaMax, const float* collisionRegionMin, const float* collisionRegionMax, int* isCompatible);
+__global__ void cuSearchDoublet(const float* rBvec, const float* zBvec, 
+				const float* rM, const float* zM, const int* isBottom,  
+				const float* deltaRMin,  const float* deltaRMax, const float* cotThetaMax, 
+				const float* collisionRegionMin, const float* collisionRegionMax, 
+				int* isCompatible);
 
-void SeedfinderKernels::SearchDoublet( dim3 grid, dim3 block, const float* rBvec, const float* zBvec, const float* rM, const float* zM, const bool* isBottom,  const float* deltaRMin,   const float* deltaRMax, const float* cotThetaMax, const float* collisionRegionMin, const float* collisionRegionMax,  int* isCompatible  ){
-  cuSearchDoublet<<<grid, block>>>( rBvec, zBvec, rM, zM, isBottom, deltaRMin, deltaRMax, cotThetaMax, collisionRegionMin, collisionRegionMax, isCompatible );
+void SeedfinderKernels::SearchDoublet( dim3 grid, dim3 block, 
+				       //cudaStream_t* stream, 
+				       const float* rBvec, const float* zBvec, 
+				       const float* rM, const float* zM, const int* isBottom,
+				       const float* deltaRMin,   const float* deltaRMax, const float* cotThetaMax, 
+				       const float* collisionRegionMin, const float* collisionRegionMax,  
+				       int* isCompatible  ){
+
+  cuSearchDoublet<<< grid, block >>>( rBvec, zBvec, rM, zM, isBottom, 
+				      deltaRMin, deltaRMax, cotThetaMax, 
+				      collisionRegionMin, collisionRegionMax, 
+				      isCompatible );
+  gpuErrChk( cudaGetLastError() );
 }
 
+
 __global__ void cuSearchDoublet(const float* rBvec, const float* zBvec, 
-				const float* rM, const float* zM, const bool* isBottom,  
-				const float* deltaRMin,  const float* deltaRMax, 
-				const float* cotThetaMax, const float* collisionRegionMin,  const float* collisionRegionMax,
-				 int* isCompatible ){
-  int globalId = blockIdx.x+blockDim.x * blockIdx.x;
+				const float* rM, const float* zM, const int* isBottom,  
+				const float* deltaRMin,  const float* deltaRMax, const float* cotThetaMax, 
+				const float* collisionRegionMin,  const float* collisionRegionMax,
+				int* isCompatible ){
+
+  int globalId = threadIdx.x+blockDim.x * blockIdx.x;
   float rB = rBvec[globalId];
   float zB = zBvec[globalId];
-  float deltaR = *rM - rB;
 
   // Doublet search for bottom hits
   if (*isBottom == true){
+
+    float deltaR = *rM - rB;
+
     if (deltaR > *deltaRMax){
       isCompatible[globalId] = false;
     }
@@ -42,6 +62,8 @@ __global__ void cuSearchDoublet(const float* rBvec, const float* zBvec,
 
   // Doublet search for top hits
   else if (*isBottom == false){
+
+    float deltaR = rB - *rM;
 
     if (deltaR < *deltaRMin){
       isCompatible[globalId] = false;

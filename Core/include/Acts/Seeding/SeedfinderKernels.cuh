@@ -11,10 +11,16 @@
 class SeedfinderKernels {
 
 public: 
-  //template < typename Var_t >
-  static void SearchDoublet( dim3 grid, dim3 block, const float* rBvec, const float* zBvec, const float* rM, const float* zM, const bool* isBottom, const float* deltaRMin, const float* deltaRMax, const float* cotThetaMax, const float* collisionRegionMin, const float* collisionRegionMax, int* isCompatible );
 
-  static void test();
+  static void SearchDoublet( dim3 grid, dim3 block, 
+			     //cudaStream_t* stream, 
+			     const float* rBvec, const float* zBvec, 
+			     const float* rM, const float* zM, const int* isBottom, 
+			     const float* deltaRMin, const float* deltaRMax, 
+			     const float* cotThetaMax, 
+			     const float* collisionRegionMin, 
+			     const float* collisionRegionMax, 
+			     int* isCompatible );
 
 private:
   

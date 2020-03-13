@@ -48,19 +48,10 @@ namespace Acts {
   double triplet_time = 0;
 
   // ----- Statistics Test ----- //
-  int i_bot = 0;
-  int i_mid = 0;
-  int i_top = 0;
-
-  for (auto sp: bottomSPs) i_bot++;
-  for (auto sp: middleSPs) i_mid++;
-  for (auto sp: topSPs)    i_top++;
-
-  std::cout <<"Bottom Hits: " << i_bot << "  Middle Hits: " << i_mid << "  Top Hits: " << i_top << std::endl;
-  /////////////////////////////////
+  int i_middleSP = 0;
 
   for (auto spM : middleSPs) {
-
+   
     float rM = spM->radius();
     float zM = spM->z();
     float varianceRM = spM->varianceR();
@@ -129,8 +120,15 @@ namespace Acts {
       continue;
     }
   
-    std::cout << "  Compat Bottom Hits: " << compatBottomSP.size() << "   Compat Top Hits: " << compatTopSP.size() << std::endl;
+    std::cout << i_middleSP << "  CPU  Compatible Bot: " << compatBottomSP.size() << "  Top: " << compatTopSP.size() << std::endl;
 
+    ////////////////////////////////////////////////////////////
+    // Disable other parts temporariliy
+    i_middleSP++;
+    if (i_middleSP == m_config.nMiddleSPsToIterate) break;
+
+    continue;
+    ////////////////////////////////////////////////////////////
     auto end_doublet = std::chrono::system_clock::now();
 
     std::chrono::duration<double> elapsed_seconds_doublet = end_doublet - start_doublet;
@@ -280,12 +278,13 @@ namespace Acts {
     std::chrono::duration<double> elapsed_seconds_triplet = end_triplet - start_triplet;
     triplet_time+=elapsed_seconds_triplet.count();
 
-    std::cout << elapsed_seconds_doublet.count() << "  " << elapsed_seconds_triplet.count() << "  " << std::endl;
+    //std::cout << elapsed_seconds_doublet.count() << "  " << elapsed_seconds_triplet.count() << "  " << std::endl;
 
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
+
   }
 
-  std::cout << "Doublet Time: " << doublet_time << "  Triplet Time: " << triplet_time << std::endl;
+  //std::cout << "Doublet Time: " << doublet_time << "  Triplet Time: " << triplet_time << std::endl;
 
   return outputVec;
   }
@@ -300,61 +299,202 @@ namespace Acts {
   // ----- Algorithm 0. Matrix Flattening ----- //
   std::vector<float> rBvec;
   std::vector<float> zBvec;
-  std::vector<int> isBotCompat;
 
   for (auto sp: bottomSPs){
     rBvec.push_back(sp->radius());
     zBvec.push_back(sp->z());
-    isBotCompat.push_back(true);
   }
 
   std::vector<float> rTvec;
   std::vector<float> zTvec;
-  std::vector<int>  isTopCompat;
 
   for (auto sp: topSPs){
     rTvec.push_back(sp->radius());
     zTvec.push_back(sp->z());
-    isTopCompat.push_back(true);
   }
 
-  // ----- Algorithm 1. Doublet Search ----- //
-  
-  dim3 blockSize(WARP_SIZE*2,0,0); // 128
-  dim3 gridSize(64,0,0);
-  const int nHitsPerStream = blockSize.x*gridSize.x; // 8192
+  // ----- Algorithm 1. Doublet Search (DS) ----- //
 
-  CUDA::Buffer<float> rB_cuda(rBvec.size());
-  CUDA::Buffer<float> zB_cuda(zBvec.size()); // rBvec.size() == zBvec.size()
-  CUDA::Buffer<int> isBotCompat_cuda(rBvec.size());
+  // ----- GPU configuration setup ----- //
+  dim3 DSBlockSize(WARP_SIZE*10,1,1); // 640
+  dim3 DSGridSize(128,1,1);  
+  //const int nHitsPerStream=1;
+  //dim3 DSBlockSize(1,1,1); // 128
+  //dim3 DSGridSize(1,1,1);  
+  const int nHitsPerStream = DSBlockSize.x*DSGridSize.x; // 8192
+  std::vector<cudaStream_t*> streams;
 
-  std::vector<cudaStream_t> streams;
+  int i_middleSP = 0;
 
   for (auto sp: middleSPs){
 
     float rM = sp->radius();
     float zM = sp->z();
-    bool  isBottom = 1;
 
-    int offset   = 0;
+    int offset;
+    
+    // ----- BOTTOM DOUBLET SEARCH ----- //    
+
+    CUDA::Buffer<float> rB_cuda(rBvec.size());
+    CUDA::Buffer<float> zB_cuda(zBvec.size());
+    std::vector<int>    isBotCompat(rBvec.size(), true);
+    CUDA::Buffer<int>   isBotCompat_cuda(rBvec.size());
+
+    offset =0;
     while (true){
+      int isBottom = 1;
 
-      cudaStream_t aStream;
-      streams.push_back(aStream);
+      //cudaStream_t aStream;
+      //cudaStreamCreate(&aStream);
+      //streams.push_back(&aStream);
+
+      int len = fmin(nHitsPerStream, rBvec.size()-offset);
+
+      rB_cuda.SetData(&rBvec[offset],len,offset);
+      zB_cuda.SetData(&zBvec[offset],len,offset);
+      isBotCompat_cuda.SetData(&isBotCompat[offset],len,offset);
+      
+      CUDA::Buffer<float> rM_cuda(1);
+      CUDA::Buffer<float> zM_cuda(1);
+      CUDA::Buffer<int>   isBottom_cuda(1);
+      CUDA::Buffer<float> deltaRMin_cuda(1);
+      CUDA::Buffer<float> deltaRMax_cuda(1);
+      CUDA::Buffer<float> cotThetaMax_cuda(1);
+      CUDA::Buffer<float> collisionRegionMin_cuda(1);
+      CUDA::Buffer<float> collisionRegionMax_cuda(1);
+
+      rM_cuda.SetData(&rM,1,0);
+      zM_cuda.SetData(&zM,1,0);
+      isBottom_cuda.SetData(&isBottom,1,0);
+      deltaRMin_cuda.SetData(&m_config.deltaRMin,1,0);
+      deltaRMax_cuda.SetData(&m_config.deltaRMax,1,0);
+      cotThetaMax_cuda.SetData(&m_config.cotThetaMax,1,0);
+      collisionRegionMin_cuda.SetData(&m_config.collisionRegionMin,1,0);
+      collisionRegionMax_cuda.SetData(&m_config.collisionRegionMax,1,0);
+
+      /*
+      rM_cuda.SetData(&rM,1,0,streams.back());
+      zM_cuda.SetData(&zM,1,0,streams.back());
+      isBottom_cuda.SetData(&isBottom,1,0,streams.back());
+      deltaRMin_cuda.SetData(&m_config.deltaRMin,1,0,streams.back());
+      deltaRMax_cuda.SetData(&m_config.deltaRMax,1,0,streams.back());
+      cotThetaMax_cuda.SetData(&m_config.cotThetaMax,1,0,streams.back());
+      collisionRegionMin_cuda.SetData(&m_config.collisionRegionMin,1,0,streams.back());
+      collisionRegionMax_cuda.SetData(&m_config.collisionRegionMax,1,0,streams.back());
       rB_cuda.SetData(&rBvec[offset],nHitsPerStream,offset, streams.back());
       zB_cuda.SetData(&zBvec[offset],nHitsPerStream,offset, streams.back());
       isBotCompat_cuda.SetData(&isBotCompat[offset],nHitsPerStream,offset,streams.back());
-       
-      SeedfinderKernels::SearchDoublet( blockSize, gridSize, 
+      */
+      //SeedfinderKernels::test(deltaRMin_cuda.data());
+      
+      SeedfinderKernels::SearchDoublet( DSBlockSize, DSGridSize, //NULL,//&streams.back(),
 					rB_cuda.data(offset), zB_cuda.data(offset), 
-					&rM, &zM, &isBottom, 
-					&m_config.deltaRMin, &m_config.deltaRMax, 
-					&m_config.cotThetaMax, &m_config.collisionRegionMin, &m_config.collisionRegionMax, 
-					isBotCompat_cuda.data(offset) );
+					rM_cuda.data(), zM_cuda.data(), 
+					isBottom_cuda.data(), 
+					deltaRMin_cuda.data(), deltaRMax_cuda.data(), 
+					cotThetaMax_cuda.data(),
+					collisionRegionMin_cuda.data(), collisionRegionMax_cuda.data(),
+					isBotCompat_cuda.data(offset) );     
+      
+      auto output = isBotCompat_cuda.dataHost(len,offset);
 
-      offset += nHitsPerStream;
-      if (offset>=rBvec.size()) break;
+      std::copy(output,output+len,isBotCompat.begin()+offset);
+      delete output;
+      
+      //if (offset>=rBvec.size()) break;
+      //std::cout << offset << "  " << len << "  " << nHitsPerStream << std::endl;
+      offset += len;
+      if (len < nHitsPerStream) break;
     }
+
+    int nBotCompat=0;
+    for (int i=0; i< rBvec.size(); i++) {
+      if (isBotCompat[i] == true) nBotCompat++;
+    }
+    if (nBotCompat == 0) continue;
+
+    // ----- TOP DOUBLET SEARCH ----- //    
+
+    CUDA::Buffer<float> rT_cuda(rTvec.size());
+    CUDA::Buffer<float> zT_cuda(zTvec.size());
+    std::vector<int>    isTopCompat(rTvec.size(), true);
+    CUDA::Buffer<int>   isTopCompat_cuda(rTvec.size());
+
+    offset =0;
+    while (true){
+      int isBottom = 0;
+
+      //cudaStream_t aStream;
+      //cudaStreamCreate(&aStream);
+      //streams.push_back(&aStream);
+      
+      int len = fmin(nHitsPerStream, rTvec.size()-offset);
+
+      rT_cuda.SetData(&rTvec[offset],len,offset);
+      zT_cuda.SetData(&zTvec[offset],len,offset);
+      isTopCompat_cuda.SetData(&isTopCompat[offset],len,offset);
+      
+      CUDA::Buffer<float> rM_cuda(1);
+      CUDA::Buffer<float> zM_cuda(1);
+      CUDA::Buffer<int>   isBottom_cuda(1);
+      CUDA::Buffer<float> deltaRMin_cuda(1);
+      CUDA::Buffer<float> deltaRMax_cuda(1);
+      CUDA::Buffer<float> cotThetaMax_cuda(1);
+      CUDA::Buffer<float> collisionRegionMin_cuda(1);
+      CUDA::Buffer<float> collisionRegionMax_cuda(1);
+
+      rM_cuda.SetData(&rM,1,0);
+      zM_cuda.SetData(&zM,1,0);
+      isBottom_cuda.SetData(&isBottom,1,0);
+      deltaRMin_cuda.SetData(&m_config.deltaRMin,1,0);
+      deltaRMax_cuda.SetData(&m_config.deltaRMax,1,0);
+      cotThetaMax_cuda.SetData(&m_config.cotThetaMax,1,0);
+      collisionRegionMin_cuda.SetData(&m_config.collisionRegionMin,1,0);
+      collisionRegionMax_cuda.SetData(&m_config.collisionRegionMax,1,0);
+
+      SeedfinderKernels::SearchDoublet( DSBlockSize, DSGridSize, //NULL,//&streams.back(),
+					rT_cuda.data(offset), zT_cuda.data(offset), 
+					rM_cuda.data(), zM_cuda.data(), 
+					isBottom_cuda.data(), 
+					deltaRMin_cuda.data(), deltaRMax_cuda.data(), 
+					cotThetaMax_cuda.data(),
+					collisionRegionMin_cuda.data(), collisionRegionMax_cuda.data(),
+					isTopCompat_cuda.data(offset) );     
+      
+      auto output = isTopCompat_cuda.dataHost(len,offset);      
+      std::copy(output,output+len,isTopCompat.begin()+offset);
+      delete output;
+
+      //if (offset>=rTvec.size()) break;
+      offset += len;
+      if (len < nHitsPerStream) break;
+    }
+
+    int nTopCompat=0;    
+    for (int i=0; i< rTvec.size(); i++) {
+      if (isTopCompat[i] == true) nTopCompat++;
+    }
+    if (nTopCompat == 0) continue;
+
+    if (nBotCompat && nTopCompat){   
+
+      std::cout << i_middleSP << "  Cuda Compatible Bot: " << nBotCompat << "  Top: " << nTopCompat << std::endl;
+    }
+
+    /*
+    std::vector<const InternalSpacePoint<external_spacepoint_t>*>
+    compatBottomSP;
+
+    for(int i=0; i< rBvec.size(); i++){
+      if (isBotCompat[i] == true) compatBottomSP.push_back(bottomSPs.begin()+i);
+    }
+
+    std::vector<const InternalSpacePoint<external_spacepoint_t>*>
+        compatTopSP;
+    */
+    i_middleSP++;
+    if (i_middleSP == m_config.nMiddleSPsToIterate) break;
+
   }  
  
   return outputVec;

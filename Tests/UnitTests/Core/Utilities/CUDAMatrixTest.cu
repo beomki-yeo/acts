@@ -1,16 +1,18 @@
-#include "Acts/Utilities/Platforms/CUDABuffer.cu"
-#include "Acts/Utilities/Platforms/Kernels.cu"
-#include <assert.h>
-//#include <boost/test/tools/output_test_stream.hpp>
-#include <boost/test/unit_test.hpp>
 
-//using boost::test_tools::output_test_stream;
+// Developer Note (Beomki Yeo):
+// Including PlatformDef.h makes an error...
+
+#include "Acts/Utilities/Platforms/CUDA/CUDABuffer.cu"
+#include "Acts/Utilities/Platforms/CUDA/Kernels.cu"
+#include <assert.h>
+#include <boost/test/unit_test.hpp>
 
 namespace Acts{
 namespace Test{
 
 BOOST_AUTO_TEST_SUITE(Utilities)
 BOOST_AUTO_TEST_CASE( CUDAOBJ_TEST ){
+
   //------------------------------------------------
   // Test Matrix backend
   //------------------------------------------------
@@ -37,7 +39,7 @@ BOOST_AUTO_TEST_CASE( CUDAOBJ_TEST ){
   for (int i=0; i< size; i++){
     BOOST_REQUIRE( matC[i] == 10 ); 
   }   
-  
+
 }
 BOOST_AUTO_TEST_SUITE_END()
 

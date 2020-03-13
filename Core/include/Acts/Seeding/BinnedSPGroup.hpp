@@ -128,7 +128,7 @@ class Neighborhood {
     return NeighborhoodIterator<external_spacepoint_t>(
         m_indices, m_spgrid, m_indices.size() - 1,
         std::end(m_spgrid->at(m_indices.back())));
-  }
+  }  
 
  private:
   std::vector<size_t> m_indices;
