@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <vector>
+#include <array>
 
 #include "Acts/Material/Interactions.hpp"
 #include "Acts/Material/MaterialProperties.hpp"
@@ -23,8 +23,6 @@ namespace ActsFatras {
 /// fluctuations from a Landau distribution. No secondaries are generated
 /// for the removed energy.
 struct BetheBloch {
-  /// The flag to include BetheBloch process or not
-  bool betheBloch = true;
   /// Scaling for most probable value
   double scaleFactorMPV = 1.;
   /// Scaling for Sigma
@@ -39,18 +37,13 @@ struct BetheBloch {
   ///
   /// @tparam generator_t is a RandomNumberEngine
   template <typename generator_t>
-  std::vector<Particle> operator()(generator_t &generator,
-                                   const Acts::MaterialProperties &slab,
-                                   Particle &particle) const {
-    // Do nothing if the flag is set to false
-    if (not betheBloch) {
-      return {};
-    }
-
+  std::array<Particle, 0> operator()(generator_t &generator,
+                                     const Acts::MaterialProperties &slab,
+                                     Particle &particle) const {
     // compute energy loss distribution parameters
     const auto pdg = particle.pdg();
     const auto m = particle.mass();
-    const auto qOverP = particle.chargeOverMomentum();
+    const auto qOverP = particle.charge() / particle.absMomentum();
     const auto q = particle.charge();
     // most probable value
     const auto energyLoss =

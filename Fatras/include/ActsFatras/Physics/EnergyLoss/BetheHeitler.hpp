@@ -8,8 +8,8 @@
 
 #pragma once
 
+#include <array>
 #include <random>
-#include <vector>
 
 #include "Acts/Material/MaterialProperties.hpp"
 #include "ActsFatras/EventData/Particle.hpp"
@@ -22,8 +22,6 @@ namespace ActsFatras {
 /// "A Gaussian-mixture approximation of the Bethe–Heitler model of electron
 /// energy loss by bremsstrahlung" R. Frühwirth
 struct BetheHeitler {
-  /// The flag to include BetheHeitler process or not
-  bool betheHeitler = true;
   /// A scaling factor to
   double scaleFactor = 1.;
 
@@ -36,14 +34,9 @@ struct BetheHeitler {
   ///
   /// @tparam generator_t is a RandomNumberEngine
   template <typename generator_t>
-  std::vector<Particle> operator()(generator_t &generator,
-                                   const Acts::MaterialProperties &slab,
-                                   Particle &particle) const {
-    // Do nothing if the flag is set to false
-    if (not betheHeitler) {
-      return {};
-    }
-
+  std::array<Particle, 0> operator()(generator_t &generator,
+                                     const Acts::MaterialProperties &slab,
+                                     Particle &particle) const {
     // Take a random gamma-distributed value - depending on t/X0
     std::gamma_distribution<double> gDist(slab.thicknessInX0() / std::log(2.0),
                                           1.0);

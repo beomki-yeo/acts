@@ -10,27 +10,26 @@
 
 #include <cmath>
 
-#include "Acts/Utilities/Helpers.hpp"
 #include "ActsFatras/EventData/Particle.hpp"
 
 namespace ActsFatras {
 namespace Casts {
 
-/// Retrieve the transverse absolute distance of the vertex to the origin.
+/// Retrieve the transverse absolute distance of the position to the origin.
 struct Vrho {
   double operator()(const Particle& particle) const {
-    return Acts::VectorHelpers::perp(particle.position());
+    return std::hypot(particle.position().x(), particle.position().y());
   }
 };
 
-/// Retrieve the longitudinal distance of the vertex to the origin.
+/// Retrieve the longitudinal distance of the position to the origin.
 struct Vz {
   double operator()(const Particle& particle) const {
     return particle.position().z();
   }
 };
 
-/// Retrieve the longitudinal absolute distance of the vertex to the origin.
+/// Retrieve the longitudinal absolute distance of the position to the origin.
 struct AbsVz {
   double operator()(const Particle& particle) const {
     return std::abs(particle.position().z());
@@ -40,29 +39,32 @@ struct AbsVz {
 /// Retrieve the direction pseudo-rapidity.
 struct Eta {
   double operator()(const Particle& particle) const {
-    return Acts::VectorHelpers::eta(particle.direction());
+    // particle direction is always normalized, i.e. dz = pz / p
+    return std::atanh(particle.unitDirection().z());
   }
 };
 
 /// Retrieve the direction absolute pseudo-rapidity.
 struct AbsEta {
   double operator()(const Particle& particle) const {
-    return std::abs(Acts::VectorHelpers::eta(particle.direction()));
+    // particle direction is always normalized, i.e. dz = pz / p
+    return std::atanh(std::abs(particle.unitDirection().z()));
   }
 };
 
 /// Retrieve the transverse momentum.
 struct Pt {
   double operator()(const Particle& particle) const {
-    return particle.momentum() *
-           Acts::VectorHelpers::perp(particle.direction());
+    // particle direction is always normalized, i.e. dt²+dz²=1 w/ dt²=dx²+dy²
+    return particle.absMomentum() * std::hypot(particle.unitDirection().x(),
+                                               particle.unitDirection().y());
   }
 };
 
 /// Retrieve the absolute momentum.
 struct P {
   double operator()(const Particle& particle) const {
-    return particle.momentum();
+    return particle.absMomentum();
   }
 };
 

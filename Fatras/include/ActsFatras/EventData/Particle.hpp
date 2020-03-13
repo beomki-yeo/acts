@@ -9,21 +9,15 @@
 #pragma once
 
 #include <cmath>
-#include <cstdint>
+#include <iosfwd>
 #include <limits>
 
 #include "Acts/Utilities/Definitions.hpp"
 #include "Acts/Utilities/PdgParticle.hpp"
 #include "ActsFatras/EventData/Barcode.hpp"
+#include "ActsFatras/EventData/ProcessType.hpp"
 
 namespace ActsFatras {
-
-/// Process type identifier.
-///
-/// Encodes the type of process that generated the particle.
-enum class ProcessType : uint32_t {
-  eUndefined = 0,
-};
 
 /// Simulation particle information and kinematic state.
 class Particle {
@@ -36,23 +30,44 @@ class Particle {
   Particle() = default;
   /// Construct a particle at rest with explicit mass and charge.
   ///
-  /// @param id     Encoded identifier within an event
-  /// @param pdg    PDG particle number
-  /// @param mass   Particle mass in native units
+  /// @param particleId Particle identifier within an event
+  /// @param pdg PDG id
   /// @param charge Particle charge in native units
+  /// @param mass Particle mass in native units
   ///
   /// @warning It is the users responsibility that charge and mass match
   ///          the PDG particle number.
-  Particle(Barcode id, Acts::PdgParticle pdg, Scalar mass, Scalar charge)
-      : m_id(id), m_pdg(pdg), m_charge(charge), m_mass(mass) {}
+  Particle(Barcode particleId, Acts::PdgParticle pdg, Scalar charge,
+           Scalar mass)
+      : m_particleId(particleId), m_pdg(pdg), m_charge(charge), m_mass(mass) {}
+  /// Construct a particle at rest from a PDG particle number.
+  ///
+  /// @param particleId Particle identifier within an event
+  /// @param pdg PDG particle number
+  ///
+  /// Charge and mass are retrieved from the particle data table.
+  Particle(Barcode particleId, Acts::PdgParticle pdg);
   Particle(const Particle &) = default;
   Particle(Particle &&) = default;
   Particle &operator=(const Particle &) = default;
   Particle &operator=(Particle &&) = default;
 
+  /// Construct a new particle with a new identifier but same kinematics.
+  ///
+  /// @note This is intentionally not a regular setter. The particle id
+  ///       is used to identify the whole particle. Setting it on an existing
+  ///       particle is usually a mistake.
+  Particle withParticleId(Barcode particleId) const {
+    Particle p = *this;
+    p.m_particleId = particleId;
+    return p;
+  }
+
   /// Set the process type that generated this particle.
-  Particle &process(ProcessType proc) { return m_process = proc, *this; }
+  Particle &setProcess(ProcessType proc) { return m_process = proc, *this; }
   /// Set the space-time position four-vector.
+  ///
+  /// The component order is [x,y,z,t].
   Particle &setPosition4(const Vector4 &pos4) {
     m_position4 = pos4;
     return *this;
@@ -73,21 +88,21 @@ class Particle {
   }
   /// Set the direction three-vector
   Particle &setDirection(const Vector3 &direction) {
-    m_direction = direction;
-    m_direction.normalize();
+    m_unitDirection = direction;
+    m_unitDirection.normalize();
     return *this;
   }
   /// Set the direction three-vector from scalar components.
   Particle &setDirection(Scalar dx, Scalar dy, Scalar dz) {
-    m_direction[0] = dx;
-    m_direction[1] = dy;
-    m_direction[2] = dz;
-    m_direction.normalize();
+    m_unitDirection[0] = dx;
+    m_unitDirection[1] = dy;
+    m_unitDirection[2] = dz;
+    m_unitDirection.normalize();
     return *this;
   }
   /// Set the absolute momentum.
-  Particle &setMomentum(Scalar momentum) {
-    m_momentum = momentum;
+  Particle &setAbsMomentum(Scalar absMomentum) {
+    m_absMomentum = absMomentum;
     return *this;
   }
   /// Change the energy by the given amount.
@@ -96,92 +111,93 @@ class Particle {
   /// would result in an unphysical value, the particle is put to rest, i.e.
   /// its absolute momentum is set to zero.
   Particle &correctEnergy(Scalar delta) {
-    const auto newEnergy = std::hypot(m_mass, m_momentum) + delta;
+    const auto newEnergy = std::hypot(m_mass, m_absMomentum) + delta;
     if (newEnergy <= m_mass) {
-      m_momentum = Scalar(0);
+      m_absMomentum = Scalar(0);
     } else {
-      m_momentum = std::sqrt(newEnergy * newEnergy - m_mass * m_mass);
+      m_absMomentum = std::sqrt(newEnergy * newEnergy - m_mass * m_mass);
     }
     return *this;
   }
 
-  /// Encoded particle identifier within an event.
-  Barcode id() const { return m_id; }
+  /// Particle identifier within an event.
+  constexpr Barcode particleId() const { return m_particleId; }
   /// Which type of process generated this particle.
-  ProcessType process() const { return m_process; }
+  constexpr ProcessType process() const { return m_process; }
   /// PDG particle number that identifies the type.
-  Acts::PdgParticle pdg() const { return m_pdg; }
+  constexpr Acts::PdgParticle pdg() const { return m_pdg; }
   /// Particle charge.
-  Scalar charge() const { return m_charge; }
+  constexpr Scalar charge() const { return m_charge; }
   /// Particle mass.
-  Scalar mass() const { return m_mass; }
+  constexpr Scalar mass() const { return m_mass; }
 
   /// Space-time position four-vector.
-  const Vector4 &position4() const { return m_position4; }
+  ///
+  /// The component order is [x,y,z,t].
+  constexpr const Vector4 &position4() const { return m_position4; }
   /// Three-position, i.e. spatial coordinates without the time.
   auto position() const { return m_position4.head<3>(); }
   /// Time coordinate.
   Scalar time() const { return m_position4[3]; }
   /// Energy-momentum four-vector.
+  ///
+  /// The component order is [px,py,pz,E].
   Vector4 momentum4() const {
     Vector4 mom4;
     // stored direction is always normalized
-    mom4[0] = m_momentum * m_direction[0];
-    mom4[1] = m_momentum * m_direction[1];
-    mom4[2] = m_momentum * m_direction[2];
+    mom4[0] = m_absMomentum * m_unitDirection[0];
+    mom4[1] = m_absMomentum * m_unitDirection[1];
+    mom4[2] = m_absMomentum * m_unitDirection[2];
     mom4[3] = energy();
     return mom4;
   }
-  /// Three-direction, i.e. the normalized momentum three-vector.
-  const Vector3 &direction() const { return m_direction; }
+  /// Unit three-direction, i.e. the normalized momentum three-vector.
+  const Vector3 &unitDirection() const { return m_unitDirection; }
+  /// Absolute momentum in the x-y plane.
+  Scalar transverseMomentum() const {
+    return m_absMomentum * m_unitDirection.head<2>().norm();
+  }
   /// Absolute momentum.
-  Scalar momentum() const { return m_momentum; }
+  constexpr Scalar absMomentum() const { return m_absMomentum; }
   /// Total energy, i.e. norm of the four-momentum.
-  Scalar energy() const { return std::hypot(m_mass, m_momentum); }
-
-  /// Charge over absolute momentum.
-  Scalar chargeOverMomentum() const { return m_charge / m_momentum; }
-  /// Relativistic velocity.
-  Scalar beta() const { return m_momentum / energy(); }
-  /// Relativistic gamma factor.
-  Scalar gamma() const { return std::hypot(1, m_momentum / m_mass); }
+  Scalar energy() const { return std::hypot(m_mass, m_absMomentum); }
 
   /// Check if the particle is alive, i.e. is not at rest.
-  operator bool() const { return Scalar(0) < m_momentum; }
+  constexpr operator bool() const { return Scalar(0) < m_absMomentum; }
   /// Check if the particle is dead, i.e is at rest.
-  bool operator!() const { return m_momentum <= Scalar(0); }
+  constexpr bool operator!() const { return m_absMomentum <= Scalar(0); }
 
-  /// Register material that the particle has passed.
+  /// Set the material that the particle has passed.
   ///
-  /// @param thicknessX0 material thickness measured in radiation lengths
-  /// @param thicknessL0 material thickness measured in interaction lengths
-  Particle &addPassedMaterial(Scalar thicknessX0, Scalar thicknessL0) {
-    m_pathX0 += thicknessX0;
-    m_pathL0 += thicknessL0;
+  /// @param pathX0 passed material measured in radiation lengths
+  /// @param pathL0 passed thickness measured in interaction lengths
+  constexpr Particle &setMaterialPassed(Scalar pathX0, Scalar pathL0) {
+    m_pathX0 = pathX0;
+    m_pathL0 = pathL0;
     return *this;
   }
   /// Set the material limits.
   ///
   /// @param limitX0 maximum radiation lengths the particle can pass
   /// @param limitL0 maximum interaction lengths the particle can pass
-  Particle &setMaterialLimits(Scalar limitX0, Scalar limitL0) {
+  constexpr Particle &setMaterialLimits(Scalar limitX0, Scalar limitL0) {
     m_limitX0 = limitX0;
     m_limitL0 = limitL0;
     return *this;
   }
   /// The passed material measured in radiation lengths.
-  Scalar pathInX0() const { return m_pathX0; }
+  constexpr Scalar pathInX0() const { return m_pathX0; }
   /// The passed material measured in interaction lengths.
-  Scalar pathInL0() const { return m_pathL0; }
+  constexpr Scalar pathInL0() const { return m_pathL0; }
   /// The maximum radation length the particle is allowed to pass.
-  Scalar pathLimitX0() const { return m_limitX0; }
+  constexpr Scalar pathLimitX0() const { return m_limitX0; }
   /// The maximum interaction length the particle is allowed to pass.
-  Scalar pathLimitL0() const { return m_limitL0; }
+  constexpr Scalar pathLimitL0() const { return m_limitL0; }
 
  private:
   // identity, i.e. things that do not change over the particle lifetime.
   /// Particle identifier within the event.
-  Barcode m_id;
+  Barcode m_particleId;
   /// Process type specifier.
   ProcessType m_process = ProcessType::eUndefined;
   /// PDG particle number.
@@ -190,8 +206,8 @@ class Particle {
   Scalar m_charge = Scalar(0);
   Scalar m_mass = Scalar(0);
   // kinematics, i.e. things that change over the particle lifetime.
-  Vector3 m_direction = Vector3::UnitZ();
-  Scalar m_momentum = Scalar(0);
+  Vector3 m_unitDirection = Vector3::UnitZ();
+  Scalar m_absMomentum = Scalar(0);
   Vector4 m_position4 = Vector4::Zero();
   // simulation-specific X0/L0 information and limits
   // these values are here to simplify the simulation of (nuclear) interactions.
@@ -206,5 +222,7 @@ class Particle {
   Scalar m_limitX0 = std::numeric_limits<Scalar>::max();
   Scalar m_limitL0 = std::numeric_limits<Scalar>::max();
 };
+
+std::ostream &operator<<(std::ostream &os, const Particle &particle);
 
 }  // namespace ActsFatras
