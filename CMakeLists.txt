@@ -11,13 +11,12 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 # determine project version; sets _acts_version and _acts_commit_hash
 include(ActsRetrieveVersion)
 
-project(Acts VERSION ${_acts_version} LANGUAGES CUDA CXX)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-set(CMAKE_CUDA_STANDARD 11)
+project(Acts VERSION ${_acts_version} LANGUAGES CXX CUDA)			  
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_FLAGS -arch=sm_61)
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 --expt-relaxed-constexpr")
+#set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 --expt-relaxed-constexpr")
 
 # build options
 
@@ -27,7 +26,7 @@ option(ACTS_BUILD_DD4HEP_PLUGIN "Build DD4HEP plugin" OFF)
 option(ACTS_BUILD_DIGITIZATION_PLUGIN "Build Digitization plugin" OFF)
 option(ACTS_BUILD_IDENTIFICATION_PLUGIN "Build Identification plugin" OFF)
 option(ACTS_BUILD_JSON_PLUGIN "Build Json plugin" OFF)
-option(ACTS_USE_BUNDLED_NLOHMANN_JSON "Use external nlohmann::json" ON)
+option(ACTS_USE_BUNDLED_NLOHMANN_JSON "Use external nlohmann::json" OFF)
 option(ACTS_BUILD_TGEO_PLUGIN "Build TGeo plugin" OFF)
 option(ACTS_BUILD_FATRAS "Build FAst TRAcking Simulation package" OFF)
 option(ACTS_BUILD_LEGACY "Build legacy package" OFF)
@@ -60,7 +59,7 @@ include(TargetSourcesLocal) # needed only until we require CMake 3.13
 # required packages
 set(Boost_NO_BOOST_CMAKE ON) # disable new cmake features from Boost 1.70 on
 find_package(Boost 1.62 REQUIRED COMPONENTS program_options unit_test_framework)
-find_package(Eigen 3.2.9 REQUIRED)
+find_package(Eigen 3.3.7 REQUIRED)
 
 # optional packages
 if(ACTS_BUILD_DD4HEP_PLUGIN)
