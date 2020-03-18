@@ -11,11 +11,11 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 # determine project version; sets _acts_version and _acts_commit_hash
 include(ActsRetrieveVersion)
 
+# Need to modulize CUDA activation
 project(Acts VERSION ${_acts_version} LANGUAGES CUDA CXX)			  
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_FLAGS -arch=sm_61)
-#set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 --expt-relaxed-constexpr")
 
 # build options
 

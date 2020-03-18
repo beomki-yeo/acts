@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <algorithm>
 #include <chrono>
-#include <Acts/Seeding/SeedfinderKernels.cuh>
+#include <Acts/Seeding/SeedfinderCUDAKernels.cuh>
 
 #define WARP_SIZE 64
 
@@ -387,14 +387,14 @@ namespace Acts {
       */
       //SeedfinderKernels::test(deltaRMin_cuda.data());
       
-      SeedfinderKernels::SearchDoublet( DSBlockSize, DSGridSize, //NULL,//&streams.back(),
-					rB_cuda.data(offset), zB_cuda.data(offset), 
-					rM_cuda.data(), zM_cuda.data(), 
-					isBottom_cuda.data(), 
-					deltaRMin_cuda.data(), deltaRMax_cuda.data(), 
-					cotThetaMax_cuda.data(),
-					collisionRegionMin_cuda.data(), collisionRegionMax_cuda.data(),
-					isBotCompat_cuda.data(offset) );     
+      SeedfinderCUDAKernels::SearchDoublet( DSBlockSize, DSGridSize, //NULL,//&streams.back(),
+											rB_cuda.data(offset), zB_cuda.data(offset), 
+											rM_cuda.data(), zM_cuda.data(), 
+											isBottom_cuda.data(), 
+											deltaRMin_cuda.data(), deltaRMax_cuda.data(), 
+											cotThetaMax_cuda.data(),
+											collisionRegionMin_cuda.data(), collisionRegionMax_cuda.data(),
+											isBotCompat_cuda.data(offset) );     
       
       auto output = isBotCompat_cuda.dataHost(len,offset);
 
@@ -452,14 +452,14 @@ namespace Acts {
       collisionRegionMin_cuda.SetData(&m_config.collisionRegionMin,1,0);
       collisionRegionMax_cuda.SetData(&m_config.collisionRegionMax,1,0);
 
-      SeedfinderKernels::SearchDoublet( DSBlockSize, DSGridSize, //NULL,//&streams.back(),
-					rT_cuda.data(offset), zT_cuda.data(offset), 
-					rM_cuda.data(), zM_cuda.data(), 
-					isBottom_cuda.data(), 
-					deltaRMin_cuda.data(), deltaRMax_cuda.data(), 
-					cotThetaMax_cuda.data(),
-					collisionRegionMin_cuda.data(), collisionRegionMax_cuda.data(),
-					isTopCompat_cuda.data(offset) );     
+      SeedfinderCUDAKernels::SearchDoublet( DSBlockSize, DSGridSize, //NULL,//&streams.back(),
+											rT_cuda.data(offset), zT_cuda.data(offset), 
+											rM_cuda.data(), zM_cuda.data(), 
+											isBottom_cuda.data(), 
+											deltaRMin_cuda.data(), deltaRMax_cuda.data(), 
+											cotThetaMax_cuda.data(),
+											collisionRegionMin_cuda.data(), collisionRegionMax_cuda.data(),
+											isTopCompat_cuda.data(offset) );     
       
       auto output = isTopCompat_cuda.dataHost(len,offset);      
       std::copy(output,output+len,isTopCompat.begin()+offset);

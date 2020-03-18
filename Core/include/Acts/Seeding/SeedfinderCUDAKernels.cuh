@@ -8,7 +8,7 @@
 
 #pragma once
 
-class SeedfinderKernels {
+class SeedfinderCUDAKernels {
 
 public: 
 

@@ -1,4 +1,4 @@
-#include "Acts/Seeding/SeedfinderKernels.cuh"
+#include "Acts/Seeding/SeedfinderCUDAKernels.cuh"
 #include "Acts/Utilities/Platforms/CUDA/CuUtils.cu"
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -10,7 +10,7 @@ __global__ void cuSearchDoublet(const float* rBvec, const float* zBvec,
 				const float* collisionRegionMin, const float* collisionRegionMax, 
 				int* isCompatible);
 
-void SeedfinderKernels::SearchDoublet( dim3 grid, dim3 block, 
+void SeedfinderCUDAKernels::SearchDoublet( dim3 grid, dim3 block, 
 				       //cudaStream_t* stream, 
 				       const float* rBvec, const float* zBvec, 
 				       const float* rM, const float* zM, const int* isBottom,
