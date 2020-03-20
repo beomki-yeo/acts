@@ -21,9 +21,9 @@
 #include <utility>
 #include <vector>
 #include "Acts/Seeding/SeedFilter.hpp"
-#include "Acts/Utilities/Platforms/PlatformDef.h"
 
 // --- CUDA headers --- //
+#include "Acts/Utilities/Platforms/PlatformDef.h"
 #include "cuda.h"
 #include "cuda_runtime.h"
 

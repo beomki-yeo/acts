@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <algorithm>
 #include <chrono>
+#include <Acts/Seeding/SeedfinderCPUFunctions.hpp>
 #include <Acts/Seeding/SeedfinderCUDAKernels.cuh>
 
 #define WARP_SIZE 64
@@ -50,7 +51,45 @@ namespace Acts {
   int i_middleSP = 0;
 
   for (auto spM : middleSPs) {
-   
+
+    float rM = spM->radius();
+    float zM = spM->z();
+    float varianceRM = spM->varianceR();
+    float varianceZM = spM->varianceZ();
+
+    // Doublet search
+    
+    auto compatBottomSP =
+      SeedfinderCPUFunctions<external_spacepoint_t,
+			     sp_range_t>::SearchDoublet(true, bottomSPs,
+							rM, zM, varianceRM, varianceZM,
+							m_config.deltaRMin, m_config.deltaRMax,
+							m_config.cotThetaMax,
+							m_config.collisionRegionMin,
+							m_config.collisionRegionMax);
+    
+    // no bottom SP found -> try next spM
+    if (compatBottomSP.empty()) {
+      continue;
+    }
+
+    auto compatTopSP =
+      SeedfinderCPUFunctions<external_spacepoint_t,
+			     sp_range_t>::SearchDoublet(false, topSPs,
+							rM, zM, varianceRM, varianceZM, 
+							m_config.deltaRMin, m_config.deltaRMax,
+							m_config.cotThetaMax,
+							m_config.collisionRegionMin,
+							m_config.collisionRegionMax);
+
+    // no top SP found -> try next spM
+    if (compatTopSP.empty()) {
+      continue;
+    }
+
+    std::cout << i_middleSP << "  CPU  Compatible Bot: " << compatBottomSP.size() << "  Top: " << compatTopSP.size() << std::endl;
+    
+    /*
     float rM = spM->radius();
     float zM = spM->z();
     float varianceRM = spM->varianceR();
@@ -86,11 +125,12 @@ namespace Acts {
       }
       compatBottomSP.push_back(bottomSP);
     }
+    
     // no bottom SP found -> try next spM
     if (compatBottomSP.empty()) {
       continue;
     }
-
+    
     std::vector<const InternalSpacePoint<external_spacepoint_t>*> compatTopSP;
 
     for (auto topSP : topSPs) {
@@ -114,26 +154,24 @@ namespace Acts {
         continue;
       }
       compatTopSP.push_back(topSP);
+    
     }
     if (compatTopSP.empty()) {
       continue;
     }
-  
-    std::cout << i_middleSP << "  CPU  Compatible Bot: " << compatBottomSP.size() << "  Top: " << compatTopSP.size() << std::endl;
+    */
 
     ////////////////////////////////////////////////////////////
     // Disable other parts temporariliy
-    i_middleSP++;
-    if (i_middleSP == m_config.nMiddleSPsToIterate) break;
-
-    continue;
+    //i_middleSP++;
+    //if (i_middleSP == m_config.nMiddleSPsToIterate) break;
+    //continue;
     ////////////////////////////////////////////////////////////
-    auto end_doublet = std::chrono::system_clock::now();
+    //auto end_doublet = std::chrono::system_clock::now();
+    //std::chrono::duration<double> elapsed_seconds_doublet = end_doublet - start_doublet;
+    //doublet_time+=elapsed_seconds_doublet.count();
 
-    std::chrono::duration<double> elapsed_seconds_doublet = end_doublet - start_doublet;
-    doublet_time+=elapsed_seconds_doublet.count();
-
-    auto start_triplet = std::chrono::system_clock::now();
+    //auto start_triplet = std::chrono::system_clock::now();
 
     // contains parameters required to calculate circle with linear equation
     // ...for bottom-middle
@@ -272,11 +310,9 @@ namespace Acts {
       }
     }
 
-    auto end_triplet = std::chrono::system_clock::now();
-
-    std::chrono::duration<double> elapsed_seconds_triplet = end_triplet - start_triplet;
-    triplet_time+=elapsed_seconds_triplet.count();
-
+    //auto end_triplet = std::chrono::system_clock::now();
+    //std::chrono::duration<double> elapsed_seconds_triplet = end_triplet - start_triplet;
+    //triplet_time+=elapsed_seconds_triplet.count();
     //std::cout << elapsed_seconds_doublet.count() << "  " << elapsed_seconds_triplet.count() << "  " << std::endl;
 
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
