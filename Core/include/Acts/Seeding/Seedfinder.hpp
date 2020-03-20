@@ -26,8 +26,6 @@
 // --- CUDA headers --- //
 #include "cuda.h"
 #include "cuda_runtime.h"
-#include "Acts/Seeding/Seedfinder.hpp"
-
 
 namespace Acts {
 struct LinCircle {

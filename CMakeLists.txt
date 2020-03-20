@@ -11,7 +11,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 # determine project version; sets _acts_version and _acts_commit_hash
 include(ActsRetrieveVersion)
 
-# Need to modulize CUDA activation
+# Beomki: Need to modulize the CUDA activation later....
 project(Acts VERSION ${_acts_version} LANGUAGES CUDA CXX)			  
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
