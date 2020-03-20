@@ -370,21 +370,6 @@ namespace Acts {
       cotThetaMax_cuda.SetData(&m_config.cotThetaMax,1,0);
       collisionRegionMin_cuda.SetData(&m_config.collisionRegionMin,1,0);
       collisionRegionMax_cuda.SetData(&m_config.collisionRegionMax,1,0);
-
-      /*
-      rM_cuda.SetData(&rM,1,0,streams.back());
-      zM_cuda.SetData(&zM,1,0,streams.back());
-      isBottom_cuda.SetData(&isBottom,1,0,streams.back());
-      deltaRMin_cuda.SetData(&m_config.deltaRMin,1,0,streams.back());
-      deltaRMax_cuda.SetData(&m_config.deltaRMax,1,0,streams.back());
-      cotThetaMax_cuda.SetData(&m_config.cotThetaMax,1,0,streams.back());
-      collisionRegionMin_cuda.SetData(&m_config.collisionRegionMin,1,0,streams.back());
-      collisionRegionMax_cuda.SetData(&m_config.collisionRegionMax,1,0,streams.back());
-      rB_cuda.SetData(&rBvec[offset],nHitsPerStream,offset, streams.back());
-      zB_cuda.SetData(&zBvec[offset],nHitsPerStream,offset, streams.back());
-      isBotCompat_cuda.SetData(&isBotCompat[offset],nHitsPerStream,offset,streams.back());
-      */
-      //SeedfinderKernels::test(deltaRMin_cuda.data());
       
       SeedfinderCUDAKernels::SearchDoublet( DSBlockSize, DSGridSize, //NULL,//&streams.back(),
 					    rB_cuda.data(offset), zB_cuda.data(offset), 
