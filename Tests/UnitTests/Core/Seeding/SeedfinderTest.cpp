@@ -26,6 +26,8 @@
 #include "ATLASCuts.hpp"
 #include "SpacePoint.hpp"
 
+#include "Acts/Utilities/Platforms/PlatformDef.h"
+
 std::vector<const SpacePoint*> readFile(std::string filename) {
   std::string line;
   int layer;
@@ -140,7 +142,7 @@ int main(int argc, char** argv) {
   Acts::ATLASCuts<SpacePoint> atlasCuts = Acts::ATLASCuts<SpacePoint>();
   config.seedFilter = std::make_unique<Acts::SeedFilter<SpacePoint>>(
       Acts::SeedFilter<SpacePoint>(sfconf, &atlasCuts));
-  Acts::Seedfinder<SpacePoint> a(config);
+  Acts::Seedfinder<SpacePoint, Acts::CPU> a(config);
 
   // covariance tool, sets covariances per spacepoint as required
   auto ct = [=](const SpacePoint& sp, float, float, float) -> Acts::Vector2D {

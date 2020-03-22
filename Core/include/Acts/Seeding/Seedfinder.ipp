@@ -46,21 +46,14 @@ namespace Acts {
     sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const {
   std::vector<Seed<external_spacepoint_t>> outputVec;
 
-  double doublet_time = 0;
-  double triplet_time = 0;
+  for (auto spM : middleSPs) {    
 
-  int i_middleSP = 0;
-
-  for (auto spM : middleSPs) {
-    i_middleSP++;
-    
     float rM = spM->radius();
     float zM = spM->z();
     float varianceRM = spM->varianceR();
     float varianceZM = spM->varianceZ();
 
-    // Doublet search
-    
+    // Doublet search    
     auto compatBottomSP =
       SeedfinderCPUFunctions<external_spacepoint_t,
 			     sp_range_t>::SearchDoublet(true, bottomSPs, *spM, m_config);
@@ -78,8 +71,6 @@ namespace Acts {
     if (compatTopSP.empty()) {
       continue;
     }
-
-    std::cout << i_middleSP << "  CPU  Compatible Bot: " << compatBottomSP.size() << "  Top: " << compatTopSP.size() << std::endl;
     
     // contains parameters required to calculate circle with linear equation
     // ...for bottom-middle
