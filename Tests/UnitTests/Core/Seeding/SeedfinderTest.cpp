@@ -26,10 +26,6 @@
 #include "ATLASCuts.hpp"
 #include "SpacePoint.hpp"
 
-// --- CUDA headers --- //
-#include "Acts/Utilities/Platforms/PlatformDef.h"
-#include "cuda.h"
-
 std::vector<const SpacePoint*> readFile(std::string filename) {
   std::string line;
   int layer;
@@ -42,11 +38,9 @@ std::vector<const SpacePoint*> readFile(std::string filename) {
       std::stringstream ss(line);
       std::string linetype;
       ss >> linetype;
-      int index;
       float x, y, z, r, varianceR, varianceZ;
       if (linetype == "lxyz") {
-        //ss >> index >> layer >> x >> y >> z >> varianceR >> varianceZ;
-	ss >> layer >> x >> y >> z >> varianceR >> varianceZ;
+        ss >> layer >> x >> y >> z >> varianceR >> varianceZ;
         r = std::sqrt(x * x + y * y);
         float f22 = varianceR;
         float wid = varianceZ;
@@ -146,10 +140,7 @@ int main(int argc, char** argv) {
   Acts::ATLASCuts<SpacePoint> atlasCuts = Acts::ATLASCuts<SpacePoint>();
   config.seedFilter = std::make_unique<Acts::SeedFilter<SpacePoint>>(
       Acts::SeedFilter<SpacePoint>(sfconf, &atlasCuts));
-  //Acts::Seedfinder<SpacePoint> a(config);
-  Acts::Seedfinder<SpacePoint, Acts::CPU> a(config);
-
-  Acts::Seedfinder<SpacePoint, Acts::CUDA> a_cuda(config);
+  Acts::Seedfinder<SpacePoint> a(config);
 
   // covariance tool, sets covariances per spacepoint as required
   auto ct = [=](const SpacePoint& sp, float, float, float) -> Acts::Vector2D {
@@ -172,39 +163,14 @@ int main(int argc, char** argv) {
                                                  bottomBinFinder, topBinFinder,
                                                  std::move(grid), config);
 
-
-
-  // --------- Test CUDA -------- //
-  
-  std::vector<std::vector<Acts::Seed<SpacePoint>>> seedVector_cuda;
-  int i_group_cuda = 0;
-  auto groupIt_cuda = spGroup.begin();
-  auto endOfGroups_cuda = spGroup.end();
-  for (; !(groupIt_cuda == endOfGroups_cuda); ++groupIt_cuda) {
-
-    //std::cout << "GroupID <CUDA>: " << i_group_cuda << std::endl;//"  " << groupIt_cuda.bottom().size() << "  " << groupIt_cuda.middle().size() << "  " << groupIt_cuda.top().size() << std::endl;
-
-    seedVector_cuda.push_back(a_cuda.createSeedsForGroup(groupIt_cuda.bottom(), groupIt_cuda.middle(), groupIt_cuda.top()));
-
-    i_group_cuda++;
-  }
-  
-  // ---------------------------- //
-
   std::vector<std::vector<Acts::Seed<SpacePoint>>> seedVector;
-  int i_group =0;
   auto start = std::chrono::system_clock::now();
   auto groupIt = spGroup.begin();
   auto endOfGroups = spGroup.end();
   for (; !(groupIt == endOfGroups); ++groupIt) {
-    //std::cout << "GroupID <CPU>: " << i_group << std::endl;// << "  " << groupIt.bottom().size() << "  " << groupIt.middle().size() << "  " << groupIt.top().size() << std::endl;
-
-    seedVector.push_back(a.createSeedsForGroup(groupIt.bottom(), groupIt.middle(), groupIt.top()));
-    
-
-    i_group++;
+    seedVector.push_back(a.createSeedsForGroup(
+        groupIt.bottom(), groupIt.middle(), groupIt.top()));
   }
-
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
   std::cout << "time to create seeds: " << elapsed_seconds.count() << std::endl;
@@ -213,7 +179,6 @@ int main(int argc, char** argv) {
   for (auto& outVec : seedVector) {
     numSeeds += outVec.size();
   }
-  /*
   std::cout << "Number of seeds generated: " << numSeeds << std::endl;
   if (!quiet) {
     for (auto& regionVec : seedVector) {
@@ -232,6 +197,5 @@ int main(int argc, char** argv) {
       }
     }
   }
-  */
   return 0;
 }
