@@ -61,8 +61,8 @@ namespace Acts {
     
     auto compatBottomSP =
       SeedfinderCPUFunctions<external_spacepoint_t,
-			     sp_range_t>::SearchDoublet(true, bottomSPs,
-							rM, zM, varianceRM, varianceZM,
+			     sp_range_t>::SearchDoublet(true, bottomSPs, *spM,
+							//rM, zM, varianceRM, varianceZM,
 							m_config.deltaRMin, m_config.deltaRMax,
 							m_config.cotThetaMax,
 							m_config.collisionRegionMin,
@@ -75,8 +75,8 @@ namespace Acts {
 
     auto compatTopSP =
       SeedfinderCPUFunctions<external_spacepoint_t,
-			     sp_range_t>::SearchDoublet(false, topSPs,
-							rM, zM, varianceRM, varianceZM, 
+			     sp_range_t>::SearchDoublet(false, topSPs, *spM,
+							//rM, zM, varianceRM, varianceZM, 
 							m_config.deltaRMin, m_config.deltaRMax,
 							m_config.cotThetaMax,
 							m_config.collisionRegionMin,
@@ -87,99 +87,14 @@ namespace Acts {
       continue;
     }
 
-    std::cout << i_middleSP << "  CPU  Compatible Bot: " << compatBottomSP.size() << "  Top: " << compatTopSP.size() << std::endl;
-    
-    /*
-    float rM = spM->radius();
-    float zM = spM->z();
-    float varianceRM = spM->varianceR();
-    float varianceZM = spM->varianceZ();
-
-    auto start_doublet = std::chrono::system_clock::now();
-
-    // bottom space point
-    std::vector<const InternalSpacePoint<external_spacepoint_t>*>
-        compatBottomSP;
-
-    for (auto bottomSP : bottomSPs) {
-      float rB = bottomSP->radius();
-      float deltaR = rM - rB;
-      // if r-distance is too big, try next SP in bin
-      if (deltaR > m_config.deltaRMax) {
-        continue;
-      }
-      // if r-distance is too small, break because bins are NOT r-sorted
-      if (deltaR < m_config.deltaRMin) {
-        continue;
-      }
-      // ratio Z/R (forward angle) of space point duplet
-      float cotTheta = (zM - bottomSP->z()) / deltaR;
-      if (std::fabs(cotTheta) > m_config.cotThetaMax) {
-        continue;
-      }
-      // check if duplet origin on z axis within collision region
-      float zOrigin = zM - rM * cotTheta;
-      if (zOrigin < m_config.collisionRegionMin ||
-          zOrigin > m_config.collisionRegionMax) {
-        continue;
-      }
-      compatBottomSP.push_back(bottomSP);
-    }
-    
-    // no bottom SP found -> try next spM
-    if (compatBottomSP.empty()) {
-      continue;
-    }
-    
-    std::vector<const InternalSpacePoint<external_spacepoint_t>*> compatTopSP;
-
-    for (auto topSP : topSPs) {
-      float rT = topSP->radius();
-      float deltaR = rT - rM;
-      // this condition is the opposite of the condition for bottom SP
-      if (deltaR < m_config.deltaRMin) {
-        continue;
-      }
-      if (deltaR > m_config.deltaRMax) {
-        break;
-      }
-
-      float cotTheta = (topSP->z() - zM) / deltaR;
-      if (std::fabs(cotTheta) > m_config.cotThetaMax) {
-        continue;
-      }
-      float zOrigin = zM - rM * cotTheta;
-      if (zOrigin < m_config.collisionRegionMin ||
-          zOrigin > m_config.collisionRegionMax) {
-        continue;
-      }
-      compatTopSP.push_back(topSP);
-    
-    }
-    if (compatTopSP.empty()) {
-      continue;
-    }
-    */
-
-    ////////////////////////////////////////////////////////////
-    // Disable other parts temporariliy
-    //i_middleSP++;
-    //if (i_middleSP == m_config.nMiddleSPsToIterate) break;
-    //continue;
-    ////////////////////////////////////////////////////////////
-    //auto end_doublet = std::chrono::system_clock::now();
-    //std::chrono::duration<double> elapsed_seconds_doublet = end_doublet - start_doublet;
-    //doublet_time+=elapsed_seconds_doublet.count();
-
-    //auto start_triplet = std::chrono::system_clock::now();
-
     // contains parameters required to calculate circle with linear equation
     // ...for bottom-middle
     std::vector<LinCircle> linCircleBottom;
     // ...for middle-top
     std::vector<LinCircle> linCircleTop;
-    transformCoordinates(compatBottomSP, *spM, true, linCircleBottom);
-    transformCoordinates(compatTopSP, *spM, false, linCircleTop);
+
+    SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::transformCoordinates(compatBottomSP, *spM, true, linCircleBottom);
+    SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::transformCoordinates(compatTopSP, *spM, false, linCircleTop);
 
     // create vectors here to avoid reallocation in each loop
     std::vector<const InternalSpacePoint<external_spacepoint_t>*> topSpVec;
@@ -521,7 +436,7 @@ namespace Acts {
   }
 
 
- 
+  /*
 template <typename external_spacepoint_t, typename architecture_t>
 void Seedfinder<external_spacepoint_t, architecture_t>::transformCoordinates(
     std::vector<const InternalSpacePoint<external_spacepoint_t>*>& vec,
@@ -573,4 +488,5 @@ void Seedfinder<external_spacepoint_t, architecture_t>::transformCoordinates(
     linCircleVec.push_back(l);
   }
 }
+  */
 }  // namespace Acts

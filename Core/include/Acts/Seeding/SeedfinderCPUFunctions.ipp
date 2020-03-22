@@ -12,12 +12,18 @@ namespace Acts{
   std::vector<const InternalSpacePoint<external_spacepoint_t>*>
   SeedfinderCPUFunctions<external_spacepoint_t, sp_range_t>::SearchDoublet(
     bool isBottom, sp_range_t& SPs,
-    const float& rM, const float& zM, const float& varianceRM, const float& varianceZM,
+    const InternalSpacePoint<external_spacepoint_t>& spM,
+    //const float& rM, const float& zM, const float& varianceRM, const float& varianceZM,
     const float& deltaRMin, const float& deltaRMax,
     const float& cotThetaMax,
     const float& collisionRegionMin,
     const float& collisionRegionMax){
 
+    float rM = spM.radius();
+    float zM = spM.z();
+    float varianceRM = spM.varianceR();
+    float varianceZM = spM.varianceZ();
+    
     std::vector<const InternalSpacePoint<external_spacepoint_t>*>
       compatSPs;
   
@@ -77,5 +83,56 @@ namespace Acts{
     }
 
     return compatSPs;
-  }  
+  }
+
+  template< typename external_spacepoint_t, typename sp_range_t > 
+  void SeedfinderCPUFunctions<external_spacepoint_t, sp_range_t>::transformCoordinates(
+       std::vector<const InternalSpacePoint<external_spacepoint_t>*>& vec,
+       const InternalSpacePoint<external_spacepoint_t>& spM, bool bottom,
+       std::vector<LinCircle>& linCircleVec) {
+    float xM = spM.x();
+    float yM = spM.y();
+    float zM = spM.z();
+    float rM = spM.radius();
+    float varianceZM = spM.varianceZ();
+    float varianceRM = spM.varianceR();
+    float cosPhiM = xM / rM;
+    float sinPhiM = yM / rM;
+    for (auto sp : vec) {
+      float deltaX = sp->x() - xM;
+      float deltaY = sp->y() - yM;
+      float deltaZ = sp->z() - zM;
+      // calculate projection fraction of spM->sp vector pointing in same
+      // direction as
+      // vector origin->spM (x) and projection fraction of spM->sp vector pointing
+      // orthogonal to origin->spM (y)
+      float x = deltaX * cosPhiM + deltaY * sinPhiM;
+      float y = deltaY * cosPhiM - deltaX * sinPhiM;
+      // 1/(length of M -> SP)
+      float iDeltaR2 = 1. / (deltaX * deltaX + deltaY * deltaY);
+      float iDeltaR = std::sqrt(iDeltaR2);
+      //
+      int bottomFactor = 1 * (int(!bottom)) - 1 * (int(bottom));
+      // cot_theta = (deltaZ/deltaR)
+      float cot_theta = deltaZ * iDeltaR * bottomFactor;
+      // VERY frequent (SP^3) access
+      LinCircle l;
+      l.cotTheta = cot_theta;
+      // location on z-axis of this SP-duplet
+      l.Zo = zM - rM * cot_theta;
+      l.iDeltaR = iDeltaR;
+      // transformation of circle equation (x,y) into linear equation (u,v)
+      // x^2 + y^2 - 2x_0*x - 2y_0*y = 0
+      // is transformed into
+      // 1 - 2x_0*u - 2y_0*v = 0
+      // using the following m_U and m_V
+      // (u = A + B*v); A and B are created later on
+      l.U = x * iDeltaR2;
+      l.V = y * iDeltaR2;
+      // error term for sp-pair without correlation of middle space point
+      l.Er = ((varianceZM + sp->varianceZ()) +
+	      (cot_theta * cot_theta) * (varianceRM + sp->varianceR())) * iDeltaR2;
+      linCircleVec.push_back(l);
+    }              
+  }
 }

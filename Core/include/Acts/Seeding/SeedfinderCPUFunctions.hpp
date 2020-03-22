@@ -20,11 +20,17 @@ namespace Acts{
     
     static std::vector<const InternalSpacePoint<external_spacepoint_t>*>
     SearchDoublet(bool isBottom, sp_range_t& SPs,
-		  const float& rM, const float& zM, const float& varianceRM, const float& varianceZM,
+		  const InternalSpacePoint<external_spacepoint_t>& spM,
+		  //const float& rM, const float& zM, const float& varianceRM, const float& varianceZM,
 		  const float& deltaRMin, const float& deltaRMax,
 		  const float& cotThetaMax, 
 		  const float& collisionRegionMin,
 		  const float& collisionRegionMax);
+
+    static void transformCoordinates(std::vector<const InternalSpacePoint<external_spacepoint_t>*>& vec,
+				     const InternalSpacePoint<external_spacepoint_t>& spM, bool bottom,
+				     std::vector<LinCircle>& linCircleVec);
+    
   private:
     
   };
