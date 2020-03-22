@@ -57,8 +57,8 @@ include(TargetSourcesLocal) # needed only until we require CMake 3.13
 
 # required packages
 set(Boost_NO_BOOST_CMAKE ON) # disable new cmake features from Boost 1.70 on
-find_package(Boost 1.62 REQUIRED COMPONENTS program_options unit_test_framework)
-find_package(Eigen 3.3.7 REQUIRED)
+find_package(Boost 1.69 REQUIRED COMPONENTS program_options unit_test_framework)
+find_package(Eigen 3.2.9 REQUIRED)
 
 # optional packages
 if(ACTS_BUILD_DD4HEP_PLUGIN)
