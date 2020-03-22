@@ -21,15 +21,21 @@ namespace Acts{
     static std::vector<const InternalSpacePoint<external_spacepoint_t>*>
     SearchDoublet(bool isBottom, sp_range_t& SPs,
 		  const InternalSpacePoint<external_spacepoint_t>& spM,
-		  //const float& rM, const float& zM, const float& varianceRM, const float& varianceZM,
-		  const float& deltaRMin, const float& deltaRMax,
-		  const float& cotThetaMax, 
-		  const float& collisionRegionMin,
-		  const float& collisionRegionMax);
+		  const SeedfinderConfig<external_spacepoint_t>& config);
 
     static void transformCoordinates(std::vector<const InternalSpacePoint<external_spacepoint_t>*>& vec,
 				     const InternalSpacePoint<external_spacepoint_t>& spM, bool bottom,
 				     std::vector<LinCircle>& linCircleVec);
+
+
+    static std::vector<std::pair< float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
+    SearchTriplet(const InternalSpacePoint<external_spacepoint_t>& spM,
+		  const std::vector<const InternalSpacePoint<external_spacepoint_t>*>& compatBottomSP,
+		  const std::vector<const InternalSpacePoint<external_spacepoint_t>*>& compatTopSP,
+		  const std::vector<LinCircle>& linCircleBottom,
+		  const std::vector<LinCircle>& linCircleTop,
+		  const SeedfinderConfig<external_spacepoint_t>& config);
+
     
   private:
     
