@@ -12,10 +12,10 @@ class SeedfinderCUDAKernels {
 
 public: 
 
-  static void SearchDoublet( dim3 grid, dim3 block, 
-			     //cudaStream_t* stream, 
+  static void SearchDoublet( dim3 grid, dim3 block,
+			     const int* isBottom, 
 			     const float* rBvec, const float* zBvec, 
-			     const float* rM, const float* zM, const int* isBottom, 
+			     const float* rMvec, const float* zMvec,
 			     const float* deltaRMin, const float* deltaRMax, 
 			     const float* cotThetaMax, 
 			     const float* collisionRegionMin, 

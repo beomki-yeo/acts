@@ -26,9 +26,7 @@
 #include "ATLASCuts.hpp"
 #include "SpacePoint.hpp"
 
-// --- CUDA headers --- //
-#include "cuda.h"
-#include "Acts/Utilities/Platforms/CUDA/CuUtils.cu"
+#include "Acts/Utilities/Platforms/PlatformDef.h"
 
 std::vector<const SpacePoint*> readFile(std::string filename) {
   std::string line;
@@ -42,11 +40,9 @@ std::vector<const SpacePoint*> readFile(std::string filename) {
       std::stringstream ss(line);
       std::string linetype;
       ss >> linetype;
-      int index;
       float x, y, z, r, varianceR, varianceZ;
       if (linetype == "lxyz") {
-        ss >> index >> layer >> x >> y >> z >> varianceR >> varianceZ;
-	//ss >> layer >> x >> y >> z >> varianceR >> varianceZ;
+        ss >> layer >> x >> y >> z >> varianceR >> varianceZ;
         r = std::sqrt(x * x + y * y);
         float f22 = varianceR;
         float wid = varianceZ;
@@ -72,21 +68,53 @@ std::vector<const SpacePoint*> readFile(std::string filename) {
   return readSP;
 }
 
-int main() {
-  
-  std::string devName;
-  SetDevice(0, devName);
+int main(int argc, char** argv) {
+  std::string file{"sp.txt"};
+  bool help(false);
+  bool quiet(false);
 
-  //std::vector<const SpacePoint*> spVec = readFile("hits4seeding_21100.csv");
-  std::vector<const SpacePoint*> spVec = readFile("sample_1000k.txt");
-  //std::vector<const SpacePoint*> spVec = readFile("sp.txt");
-  std::cout << "size of read SP: " << spVec.size() << std::endl;
+  int opt;
+  while ((opt = getopt(argc, argv, "hf:q")) != -1) {
+    switch (opt) {
+      case 'f':
+        file = optarg;
+        break;
+      case 'q':
+        quiet = true;
+        break;
+      case 'h':
+        help = true;
+        [[fallthrough]];
+      default: /* '?' */
+        std::cerr << "Usage: " << argv[0] << " [-hq] [-f FILENAME]\n";
+        if (help) {
+          std::cout << "      -h : this help" << std::endl;
+          std::cout
+              << "      -f FILE : read spacepoints from FILE. Default is \""
+              << file << "\"" << std::endl;
+          std::cout << "      -q : don't print out all found seeds"
+                    << std::endl;
+        }
+
+        exit(EXIT_FAILURE);
+    }
+  }
+  
+  std::ifstream f(file);
+  if (!f.good()) {
+    std::cerr << "input file \"" << file << "\" does not exist\n";
+    exit(EXIT_FAILURE);
+  }
+
+  auto start_read = std::chrono::system_clock::now();
+  std::vector<const SpacePoint*> spVec = readFile(file);
+  auto end_read = std::chrono::system_clock::now();
+  std::chrono::duration<double> elapsed_read = end_read - start_read;
+
+  std::cout << "read " << spVec.size() << " SP from file " << file << " in "
+            << elapsed_read.count() << "s" << std::endl;
 
   Acts::SeedfinderConfig<SpacePoint> config;
-  config.simpleTest = true;
-  int nGroupsToIterate       = 70;
-  config.nMiddleSPsToIterate = 1;
-
   // silicon detector max
   config.rMax = 160.;
   config.deltaRMin = 5.;
@@ -114,9 +142,8 @@ int main() {
   Acts::ATLASCuts<SpacePoint> atlasCuts = Acts::ATLASCuts<SpacePoint>();
   config.seedFilter = std::make_unique<Acts::SeedFilter<SpacePoint>>(
       Acts::SeedFilter<SpacePoint>(sfconf, &atlasCuts));
-
-  Acts::Seedfinder<SpacePoint, Acts::CPU>  a_cpu(config);
-  Acts::Seedfinder<SpacePoint, Acts::CUDA> a_cuda(config);
+  Acts::Seedfinder<SpacePoint, Acts::CPU> seedfinder_cpu(config);
+  Acts::Seedfinder<SpacePoint, Acts::CUDA> seedfinder_cuda(config);
 
   // covariance tool, sets covariances per spacepoint as required
   auto ct = [=](const SpacePoint& sp, float, float, float) -> Acts::Vector2D {
@@ -139,68 +166,66 @@ int main() {
                                                  bottomBinFinder, topBinFinder,
                                                  std::move(grid), config);
 
-  // --------- CUDA -------- //
-  auto start_cuda       = std::chrono::system_clock::now();  
-  std::vector<std::vector<Acts::Seed<SpacePoint>>> seedVector_cuda;
-  int i_group_cuda = 0;
-  auto groupIt_cuda     = spGroup.begin();
-  auto endOfGroups_cuda = spGroup.end();
-  for (; !(groupIt_cuda == endOfGroups_cuda); ++groupIt_cuda) {
-
-    seedVector_cuda.push_back(a_cuda.createSeedsForGroup(groupIt_cuda.bottom(), 
-							 groupIt_cuda.middle(), 
-							 groupIt_cuda.top()));
-    i_group_cuda++;
-    if (i_group_cuda == nGroupsToIterate) break;
-  }
-  
-  auto end_cuda = std::chrono::system_clock::now();  
-  
-  // --------- CPU -------- //
-  auto start_cpu       = std::chrono::system_clock::now();
+  int nGroupToIterate = 250;
+  int group_count;
+  ///////// CPU
+  group_count=0;
   std::vector<std::vector<Acts::Seed<SpacePoint>>> seedVector_cpu;
-  
-  int i_group_cpu = 0;
-  auto groupIt_cpu     = spGroup.begin();
-  auto endOfGroups_cpu = spGroup.end();
-  for (; !(groupIt_cpu == endOfGroups_cpu); ++groupIt_cpu) {
-    seedVector_cpu.push_back(a_cpu.createSeedsForGroup(groupIt_cpu.bottom(),
-						       groupIt_cpu.middle(), 
-						       groupIt_cpu.top()));   
-
-    i_group_cpu++;
-    if (i_group_cpu == nGroupsToIterate) break;
-  }  
-  
+  auto start_cpu = std::chrono::system_clock::now();
+  auto groupIt = spGroup.begin();
+  auto endOfGroups = spGroup.end();
+  for (; !(groupIt == endOfGroups); ++groupIt) {
+    seedVector_cpu.push_back(seedfinder_cpu.createSeedsForGroup(
+        groupIt.bottom(), groupIt.middle(), groupIt.top()));
+    group_count++;
+    if (group_count >= nGroupToIterate) break;
+  }
   auto end_cpu = std::chrono::system_clock::now();
-  
-
-  std::chrono::duration<double> elapsed_seconds_cpu = end_cpu - start_cpu;
-  std::chrono::duration<double> elapsed_seconds_cuda = end_cuda - start_cuda;
-  std::cout << "CPU  time to create seeds: " << elapsed_seconds_cpu.count() << std::endl;
-  std::cout << "CUDA time to create seeds: " << elapsed_seconds_cuda.count() << std::endl;
+  std::chrono::duration<double> elapsec_cpu = end_cpu - start_cpu;
+  std::cout << "CPU Time: " << elapsec_cpu.count() << std::endl;
   std::cout << "Number of regions: " << seedVector_cpu.size() << std::endl;
+
+  
+  ///////// CUDA
+  group_count=0;
+  std::vector<std::vector<Acts::Seed<SpacePoint>>> seedVector_cuda;
+  auto start_cuda = std::chrono::system_clock::now();
+  groupIt = spGroup.begin();
+  for (; !(groupIt == endOfGroups); ++groupIt) {
+    seedVector_cuda.push_back(seedfinder_cuda.createSeedsForGroup(
+        groupIt.bottom(), groupIt.middle(), groupIt.top()));
+    group_count++;
+    if (group_count >= nGroupToIterate) break;
+  }
+  auto end_cuda = std::chrono::system_clock::now();  
+  std::chrono::duration<double> elapsec_cuda = end_cuda - start_cuda;
+  std::cout << "CUDA Time: " << elapsec_cuda.count() << std::endl;
+
+  
   int numSeeds = 0;
   for (auto& outVec : seedVector_cpu) {
     numSeeds += outVec.size();
   }
-  
   std::cout << "Number of seeds generated: " << numSeeds << std::endl;
-  for (auto& regionVec : seedVector_cpu) {
-    for (size_t i = 0; i < regionVec.size(); i++) {
-      const Acts::Seed<SpacePoint>* seed = &regionVec[i];
-      const SpacePoint* sp = seed->sp()[0];
-      std::cout << " (" << sp->x() << ", " << sp->y() << ", " << sp->z()
-                << ") ";
-      sp = seed->sp()[1];
-      std::cout << sp->surface << " (" << sp->x() << ", " << sp->y() << ", "
-                << sp->z() << ") ";
-      sp = seed->sp()[2];
-      std::cout << sp->surface << " (" << sp->x() << ", " << sp->y() << ", "
-                << sp->z() << ") ";
-      std::cout << std::endl;
+  if (!quiet) {
+    for (auto& regionVec : seedVector_cpu) {
+      for (size_t i = 0; i < regionVec.size(); i++) {
+        const Acts::Seed<SpacePoint>* seed = &regionVec[i];
+        const SpacePoint* sp = seed->sp()[0];
+        std::cout << " (" << sp->x() << ", " << sp->y() << ", " << sp->z()
+                  << ") ";
+        sp = seed->sp()[1];
+        std::cout << sp->surface << " (" << sp->x() << ", " << sp->y() << ", "
+                  << sp->z() << ") ";
+        sp = seed->sp()[2];
+        std::cout << sp->surface << " (" << sp->x() << ", " << sp->y() << ", "
+                  << sp->z() << ") ";
+        std::cout << std::endl;
+      }
     }
   }
   
   return 0;
 }
+
+

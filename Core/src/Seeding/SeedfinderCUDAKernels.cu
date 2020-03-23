@@ -4,21 +4,25 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
-__global__ void cuSearchDoublet(const float* rBvec, const float* zBvec, 
-				const float* rM, const float* zM, const int* isBottom,  
-				const float* deltaRMin,  const float* deltaRMax, const float* cotThetaMax, 
+__global__ void cuSearchDoublet(const int* isBottom,  
+				const float* rBvec, const float* zBvec, 
+				const float* rMvec, const float* zMvec,
+				const float* deltaRMin,const float* deltaRMax,const float* cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax, 
 				int* isCompatible);
 
-void SeedfinderCUDAKernels::SearchDoublet( dim3 grid, dim3 block, 
-				       //cudaStream_t* stream, 
-				       const float* rBvec, const float* zBvec, 
-				       const float* rM, const float* zM, const int* isBottom,
-				       const float* deltaRMin,   const float* deltaRMax, const float* cotThetaMax, 
-				       const float* collisionRegionMin, const float* collisionRegionMax,  
-				       int* isCompatible  ){
 
-  cuSearchDoublet<<< grid, block >>>( rBvec, zBvec, rM, zM, isBottom, 
+void SeedfinderCUDAKernels::SearchDoublet(
+			        dim3 grid, dim3 block,
+				const int* isBottom,
+				const float* rBvec, const float* zBvec, 
+				const float* rMvec, const float* zMvec,
+				const float* deltaRMin,const float* deltaRMax,const float* cotThetaMax, 
+				const float* collisionRegionMin, const float* collisionRegionMax,  
+				int* isCompatible  ){
+  
+  cuSearchDoublet<<< grid, block >>>( isBottom,
+				      rBvec, zBvec, rMvec, zMvec,
 				      deltaRMin, deltaRMax, cotThetaMax, 
 				      collisionRegionMin, collisionRegionMax, 
 				      isCompatible );
@@ -26,20 +30,26 @@ void SeedfinderCUDAKernels::SearchDoublet( dim3 grid, dim3 block,
 }
 
 
-__global__ void cuSearchDoublet(const float* rBvec, const float* zBvec, 
-				const float* rM, const float* zM, const int* isBottom,  
-				const float* deltaRMin,  const float* deltaRMax, const float* cotThetaMax, 
-				const float* collisionRegionMin,  const float* collisionRegionMax,
+__global__ void cuSearchDoublet(const int* isBottom,
+				const float* rBvec, const float* zBvec, 
+				const float* rMvec, const float* zMvec,   
+				const float* deltaRMin,const float* deltaRMax,const float* cotThetaMax, 
+				const float* collisionRegionMin, const float* collisionRegionMax,
 				int* isCompatible ){
 
-  int globalId = threadIdx.x+blockDim.x * blockIdx.x;
-  float rB = rBvec[globalId];
-  float zB = zBvec[globalId];
+  int globalId = threadIdx.x+blockDim.x*blockIdx.x;
+  
+  float rB = rBvec[threadIdx.x];
+  float zB = zBvec[threadIdx.x];
+  float rM = rMvec[blockIdx.x];
+  float zM = zMvec[blockIdx.x];  
 
+  isCompatible[globalId] = true;
+  
   // Doublet search for bottom hits
   if (*isBottom == true){
 
-    float deltaR = *rM - rB;
+    float deltaR = rM - rB;
 
     if (deltaR > *deltaRMax){
       isCompatible[globalId] = false;
@@ -49,12 +59,12 @@ __global__ void cuSearchDoublet(const float* rBvec, const float* zBvec,
       isCompatible[globalId] = false;
     }
 
-    float cotTheta = (*zM - zB)/deltaR;
+    float cotTheta = (zM - zB)/deltaR;
     if (fabs(cotTheta) > *cotThetaMax){
       isCompatible[globalId] = false;
     }
 
-    float zOrigin = *zM - (*rM) * cotTheta;
+    float zOrigin = zM - rM*cotTheta;
     if (zOrigin < *collisionRegionMin || zOrigin > *collisionRegionMax){
       isCompatible[globalId] = false;
     }
@@ -63,7 +73,7 @@ __global__ void cuSearchDoublet(const float* rBvec, const float* zBvec,
   // Doublet search for top hits
   else if (*isBottom == false){
 
-    float deltaR = rB - *rM;
+    float deltaR = rB - rM;
 
     if (deltaR < *deltaRMin){
       isCompatible[globalId] = false;
@@ -74,16 +84,15 @@ __global__ void cuSearchDoublet(const float* rBvec, const float* zBvec,
     }
 
     if (isCompatible[globalId] == true){
-      float cotTheta = (zB -*zM)/deltaR;
+      float cotTheta = (zB - zM)/deltaR;
       if (fabs(cotTheta) > *cotThetaMax){
 	isCompatible[globalId] = false;
       }
       
-      float zOrigin = *zM - (*rM) * cotTheta;
+      float zOrigin = zM - rM*cotTheta;
       if (zOrigin < *collisionRegionMin || zOrigin > *collisionRegionMax){
 	isCompatible[globalId] = false;
       }
     }
   }
 }
-

@@ -17,19 +17,31 @@ public:
     cudaMalloc((void**)&fDevPtr, fSize*sizeof(varT));
   }
 
-  SetData(varT* buffer, int len, int offset, cudaStream_t& stream){
+  CUDABuffer(int size, varT* buffer, int offset=0){ 
+    fSize = size;
+    cudaMalloc((void**)&fDevPtr, fSize*sizeof(varT));
+    cudaMemcpy(fDevPtr+offset, buffer, fSize*sizeof(varT), cudaMemcpyHostToDevice);
+  }
+  
+  CUDABuffer(int size, const varT* buffer, int offset=0){ 
+    fSize = size;
+    cudaMalloc((void**)&fDevPtr, fSize*sizeof(varT));
+    cudaMemcpy(fDevPtr+offset, buffer, fSize*sizeof(varT), cudaMemcpyHostToDevice);
+  }
+  
+  void SetData(varT* buffer, int len, int offset, cudaStream_t& stream){
     cudaMemcpyAsync(fDevPtr+offset, buffer, len*sizeof(varT), cudaMemcpyHostToDevice,stream);
   }
 
-  SetData(const varT* buffer, int len, int offset, cudaStream_t& stream){
+  void SetData(const varT* buffer, int len, int offset, cudaStream_t& stream){
     cudaMemcpyAsync(fDevPtr+offset, buffer, len*sizeof(varT), cudaMemcpyHostToDevice,stream); 
   }
 
-  SetData(varT* buffer, int len, int offset=0){
+  void SetData(varT* buffer, int len, int offset=0){
     cudaMemcpy(fDevPtr+offset, buffer, len*sizeof(varT), cudaMemcpyHostToDevice);
   }
 
-  SetData(const varT* buffer, int len, int offset=0){
+  void SetData(const varT* buffer, int len, int offset=0){
     cudaMemcpy(fDevPtr+offset, buffer, len*sizeof(varT), cudaMemcpyHostToDevice);
   }
 
