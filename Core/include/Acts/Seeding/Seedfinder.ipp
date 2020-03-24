@@ -15,6 +15,7 @@
 #include <Acts/Seeding/SeedfinderCUDAKernels.cuh>
 
 #define WARP_SIZE 64
+#define MAX_BLOCK_SIZE 1024
 
 namespace Acts {
 
@@ -74,8 +75,9 @@ namespace Acts {
       continue;
     }
 
-    //std::cout << i_m << "   CPU compatible Hits: " << compatBottomSP.size() << "  " << compatTopSP.size() << std::endl;
-    /*
+    std::cout << i_m << "   CPU compatible Hits: " << compatBottomSP.size() << "  " << compatTopSP.size() << std::endl;
+
+    
     // contains parameters required to calculate circle with linear equation
     // ...for bottom-middle
     std::vector<LinCircle> linCircleBottom;
@@ -84,7 +86,7 @@ namespace Acts {
     
     SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::transformCoordinates(compatBottomSP, *spM, true, linCircleBottom);
     SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::transformCoordinates(compatTopSP, *spM, false, linCircleTop);
-
+    /*
     auto seedsPerSpM = SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::SearchTriplet(*spM, compatBottomSP, compatTopSP, linCircleBottom, linCircleTop, m_config);
     
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
@@ -94,6 +96,7 @@ namespace Acts {
   return outputVec;
   }
 
+  
   // CUDA seed finding
   template< typename external_spacepoint_t, typename architecture_t>
   template< typename T, typename sp_range_t>
@@ -102,7 +105,12 @@ namespace Acts {
     sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const {
   std::vector<Seed<external_spacepoint_t>> outputVec;
 
-  // ----- Algorithm 0. Matrix Flattening ----- //
+  int isBottom_cpu;
+  CUDA::Buffer<int> isBottom_cuda(1);
+  
+  /* ---------------------------------
+     Algorithm 0. Matrix Flattening 
+  ------------------------------------*/
   std::vector<float> rM_cpu;
   std::vector<float> zM_cpu;
 
@@ -129,15 +137,15 @@ namespace Acts {
 
   if (rB_cpu.size() == 0 || rM_cpu.size() == 0 || rT_cpu.size() == 0) return outputVec;
   
-  // ----- Algorithm 1. Doublet Search (DS) ----- //
-  //std::cout << rB_cpu.size() << "  " << rM_cpu.size() << "  " << rT_cpu.size() << std::endl;
+  /* ------------------------------------
+     Algorithm 1. Doublet Search (DS)
+  ---------------------------------------*/
   
-  int isBottom_cpu;
-  CUDA::Buffer<int>   isBottom_cuda(1);
-  int offset;
-  int BlockSize;
+  int  offset;
+  int  BlockSize;
   dim3 DS_BlockSize;
-
+  dim3 DS_GridSize(rM_cpu.size(),1,1);
+  
   CUDA::Buffer<float> deltaRMin_cuda(1,          &m_config.deltaRMin);
   CUDA::Buffer<float> deltaRMax_cuda(1,          &m_config.deltaRMax);
   CUDA::Buffer<float> cotThetaMax_cuda(1,        &m_config.cotThetaMax);
@@ -146,17 +154,16 @@ namespace Acts {
   CUDA::Buffer<float> rM_cuda(rM_cpu.size(), &rM_cpu[0]);
   CUDA::Buffer<float> zM_cuda(zM_cpu.size(), &zM_cpu[0]);
 
-  dim3 DS_GridSize(rM_cpu.size(),1,1);
-
   ///// For bottom space points
   isBottom_cpu = true;
   isBottom_cuda.SetData(&isBottom_cpu,1);	
-  offset=0;
+
   CUDA::Buffer<int>   isCompatBottomSP_cuda(rB_cpu.size()*rM_cpu.size());
-  auto isCompatBottomSP_cpu = std::shared_ptr<int>(new int[rB_cpu.size()*rM_cpu.size()]);
+  auto isCompatBottomMat_cpu  = CPU::Matrix<int>(rM_cpu.size(), rB_cpu.size());
   
+  offset=0;
   while(offset<rB_cpu.size()){
-    BlockSize = fmin(WARP_SIZE*16,rB_cpu.size());
+    BlockSize = fmin(MAX_BLOCK_SIZE,rB_cpu.size());
     BlockSize = fmin(BlockSize,rB_cpu.size()-offset);
     DS_BlockSize = dim3(BlockSize,1,1);    
     CUDA::Buffer<float> rB_cuda(BlockSize, &rB_cpu[offset]);    
@@ -169,30 +176,38 @@ namespace Acts {
 					  cotThetaMax_cuda.data(),
 					  collisionRegionMin_cuda.data(),collisionRegionMax_cuda.data(),
 					  isCompatBottomSP_cuda.data(offset*rM_cpu.size()) );
-    // Rearrange the doublet
-    // Prev: [mid1: bot_1, ..., bot_N]    [mid2: bot_1, ..., bot_N] ...    [midN: bot_1, ..., bot_N]
-    //       [mid1: bot_N+1, ..., bot_2N] [mid2: bot_N+1, ..., bot_2N] ... [midN: bot_N+1, ..., bot_2N]
-    //       ...
-    // New : [mid1: bot_1, ..., bot_Ntotal] [mid2: bot_1, ..., bot_Ntotal] ... [midN: bot_1, ..., bot_Ntotal]
-    for (int i_m=0; i_m<rM_cpu.size(); i_m++){
-      auto seg = isCompatBottomSP_cuda.dataHost(BlockSize,offset*rM_cpu.size()+i_m*BlockSize);
-      std::copy(seg, seg+BlockSize,
-      		isCompatBottomSP_cpu.get()+i_m*rB_cpu.size()+offset);
-      delete seg;
+    offset+=BlockSize;
+  }
+  // Rearrange the doublet (Note: It spents time more than CUDA kernel...)
+  // Prev: [mid1: bot_1, ..., bot_N]    [mid2: bot_1, ..., bot_N] ...    [midN: bot_1, ..., bot_N]
+  //       [mid1: bot_N+1, ..., bot_2N] [mid2: bot_N+1, ..., bot_2N] ... [midN: bot_N+1, ..., bot_2N]
+  //       ...
+  //
+  // New : [mid1: bot_1, ..., bot_TN] [mid2: bot_1, ..., bot_TN] ... [midN: bot_1, ..., bot_TN]
+  auto bottomBuffer = CPU::Buffer<int>(rB_cpu.size()*rM_cpu.size(),
+				       isCompatBottomSP_cuda.dataHost(rB_cpu.size()*rM_cpu.size()));
+  offset=0;
+  while(offset<rB_cpu.size()){
+    BlockSize = fmin(MAX_BLOCK_SIZE,rB_cpu.size());
+    BlockSize = fmin(BlockSize,rB_cpu.size()-offset);
+    for (int i_m=0; i_m<rM_cpu.size(); i_m++){     
+      std::copy(bottomBuffer.data()+offset*rM_cpu.size()+i_m*BlockSize,
+		bottomBuffer.data()+offset*rM_cpu.size()+(i_m+1)*BlockSize,
+		isCompatBottomMat_cpu.Get(i_m,offset));
+		//isCompatBottomSP_cpu.get()+i_m*rB_cpu.size()+offset);
     }
-    
     offset+= BlockSize;
   }
-
+  
   ///// For top space points
   isBottom_cpu = false;
   isBottom_cuda.SetData(&isBottom_cpu,1);	
-  offset=0;
   CUDA::Buffer<int>   isCompatTopSP_cuda(rT_cpu.size()*rM_cpu.size());
-  auto isCompatTopSP_cpu = std::shared_ptr<int>(new int[rT_cpu.size()*rM_cpu.size()]);
-    
+  auto isCompatTopMat_cpu = CPU::Matrix<int>(rM_cpu.size(), rT_cpu.size());
+  
+  offset=0;
   while(offset<rT_cpu.size()){
-    BlockSize = fmin(WARP_SIZE*16,rT_cpu.size());
+    BlockSize = fmin(MAX_BLOCK_SIZE,rT_cpu.size());
     BlockSize = fmin(BlockSize,rT_cpu.size()-offset);
     DS_BlockSize = dim3(BlockSize,1,1);    
     CUDA::Buffer<float> rT_cuda(BlockSize, &rT_cpu[offset]);    
@@ -205,41 +220,93 @@ namespace Acts {
 					  cotThetaMax_cuda.data(),
 					  collisionRegionMin_cuda.data(),collisionRegionMax_cuda.data(),
 					  isCompatTopSP_cuda.data(offset*rM_cpu.size()) );
-    // Rearrange the doublet
-    // Prev: [mid1: bot_1, ..., bot_N]    [mid2: bot_1, ..., bot_N] ...    [midN: bot_1, ..., bot_N]
-    //       [mid1: bot_N+1, ..., bot_2N] [mid2: bot_N+1, ..., bot_2N] ... [midN: bot_N+1, ..., bot_2N]
-    //       ...
-    // New : [mid1: bot_1, ..., bot_Ntotal] [mid2: bot_1, ..., bot_Ntotal] ... [midN: bot_1, ..., bot_Ntotal]
-    for (int i_m=0; i_m<rM_cpu.size(); i_m++){
-      auto seg = isCompatTopSP_cuda.dataHost(BlockSize,offset*rM_cpu.size()+i_m*BlockSize);
-      std::copy(seg, seg+BlockSize,
-      		isCompatTopSP_cpu.get()+i_m*rT_cpu.size()+offset);
-      delete seg;
-    }
-    
     offset+= BlockSize;
   }
+  // Rearrange the doublet (Note: It spents time more than CUDA kernel...)
+  // Prev: [mid1: top_1, ..., top_N]    [mid2: top_1, ..., top_N] ...    [midN: top_1, ..., top_N]
+  //       [mid1: top_N+1, ..., top_2N] [mid2: top_N+1, ..., top_2N] ... [midN: top_N+1, ..., top_2N]
+  //       ...
+  //
+  // New : [mid1: top_1, ..., top_TN] [mid2: top_1, ..., top_TN] ... [midN: top_1, ..., top_TN]
+  auto topBuffer = CPU::Buffer<int>(rT_cpu.size()*rM_cpu.size(),
+				    isCompatTopSP_cuda.dataHost(rT_cpu.size()*rM_cpu.size()));
+  offset=0;
+  while(offset<rT_cpu.size()){
+    BlockSize = fmin(MAX_BLOCK_SIZE,rT_cpu.size());
+    BlockSize = fmin(BlockSize,rT_cpu.size()-offset);
+    for (int i_m=0; i_m<rM_cpu.size(); i_m++){
+      std::copy(topBuffer.data()+offset*rM_cpu.size()+i_m*BlockSize,
+		topBuffer.data()+offset*rM_cpu.size()+(i_m+1)*BlockSize,
+		isCompatTopMat_cpu.Get(i_m,offset));
+    }
+    offset+= BlockSize;
+  }
+  
+  /* ----------------------------------------
+     Algorithm 2. Transform coordinate (TC)
+  -------------------------------------------*/
+
+  // Make Matrix for compatible SPs
   /*
+  for (int i_m=0; i_m<rM_cpu.size(); i_m++){
+    
+  }
+  */
+  /*
+  CPU::Matrix<float> xyzrMcomp_cpu;
+  std::vector< CPU::Matrix<float> > xyzrBcomp_cpu;
+  std::vector< CPU::Matrix<float> > xyzrTcomp_cpu;
+  */
+  /*
+  std::vector<float> xMcomp_cpu;
+  std::vector<float> yMcomp_cpu;
+  std::vector<float> zMcomp_cpu;
+  std::vector<float> rMcomp_cpu;
+
+  std::vector< std::vector<float> > xBcomp_cpu;
+  std::vector< std::vector<float> > yBcomp_cpu;
+  std::vector< std::vector<float> > zBcomp_cpu;
+  std::vector< std::vector<float> > rBcomp_cpu;
+
+  std::vector< std::vector<float> > xTcomp_cpu;
+  std::vector< std::vector<float> > yTcomp_cpu;
+  std::vector< std::vector<float> > zTcomp_cpu;
+  std::vector< std::vector<float> > rTcomp_cpu;
+  */
+  
   int nMiddle = rM_cpu.size();
   int nBottom = rB_cpu.size();
   int nTop    = rT_cpu.size();
-
+  
   for (int i_m=0; i_m<nMiddle; i_m++){
+    //if(i_m>20) break;
+    //std::cout << "Middle Index: " << i_m << "  " << nBottom << "  " << nTop  << std::endl;
+    
     int nBottomCompat=0;    
-    int nTopCompat=0;     	
+    int nTopCompat=0;
+    auto botRow = isCompatBottomMat_cpu.GetRow(i_m);
+    auto topRow = isCompatTopMat_cpu.GetRow(i_m);
+    
     for (int i_b=0; i_b<nBottom; i_b++){
-      if (isCompatBottomSP_cpu.get()[i_m*nBottom+i_b]) nBottomCompat++;
+      //std::cout << botRow[i_b] << "  ";
+      if (botRow[i_b]) nBottomCompat++;
     }
-
+    //std::cout << std::endl;
+    
     for (int i_t=0; i_t<nTop; i_t++){
-      if (isCompatTopSP_cpu.get()[i_m*nTop+i_t]) nTopCompat++;
+      //std::cout << topRow[i_t] << "  ";
+      if (topRow[i_t]) nTopCompat++;
     }
-
+    //std::cout << std::endl;
+    
     if (nBottomCompat && nTopCompat){
       std::cout << " CUDA compatible hits: " << nBottomCompat << "  " << nTopCompat << std::endl;
     }
+
+    delete botRow;
+    delete topRow;
   }
-  */
+  
   return outputVec;
   
   }  // namespace Acts
