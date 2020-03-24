@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
   std::chrono::duration<double> elapsec_cuda = end_cuda - start_cuda;
   std::cout << "CUDA Time: " << elapsec_cuda.count() << std::endl;
 
-  
+  /*
   int numSeeds = 0;
   for (auto& outVec : seedVector_cpu) {
     numSeeds += outVec.size();
@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
       }
     }
   }
-  
+  */
   return 0;
 }
 

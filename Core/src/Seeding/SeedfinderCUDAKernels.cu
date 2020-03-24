@@ -11,6 +11,18 @@ __global__ void cuSearchDoublet(const int* isBottom,
 				const float* collisionRegionMin, const float* collisionRegionMax, 
 				int* isCompatible);
 
+__global__ void cuTransformCoordinates(const int* isBottom,
+					const float* spM,
+					const int* nSpB,
+					const float* spBmat,
+					float* circBmat);
+
+__global__ void cuSearchTriplet(const float* spM,
+				const int* nSpB, const float* circBmat,
+				const int* nSpT, const float* circTmat,
+				const float* maxScatteringAngle2, const float* sigmaScattering,
+				const float* minHelixDiameter2,    const float* pT2perRadius,
+				const float* impactMax );
 
 void SeedfinderCUDAKernels::SearchDoublet(
 			        dim3 grid, dim3 block,
@@ -29,6 +41,34 @@ void SeedfinderCUDAKernels::SearchDoublet(
   gpuErrChk( cudaGetLastError() );
 }
 
+void SeedfinderCUDAKernels::TransformCoordinates( dim3 grid, dim3 block,
+						  const int* isBottom, 
+						  const float* spM,
+						  const int*   nSpB,
+						  const float* spBmat,
+						  float* circBmat){
+  
+  cuTransformCoordinates<<< grid, block >>>(isBottom, spM, nSpB, spBmat, circBmat);
+  gpuErrChk( cudaGetLastError() );  
+}
+
+void SeedfinderCUDAKernels::SearchTriplet(
+                                dim3 grid, dim3 block,
+				const float* spM,
+				const int* nSpB, const float* circBmat,
+				const int* nSpT, const float* circTmat,
+				const float* maxScatteringAngle2, const float* sigmaScattering,
+				const float* minHelixDiameter2,    const float* pT2perRadius,
+				const float* impactMax ){
+  
+  cuSearchTriplet<<< grid, block >>>(spM,
+				     nSpB, circBmat,
+				     nSpT, circTmat,
+				     maxScatteringAngle2, sigmaScattering,
+				     minHelixDiameter2, pT2perRadius,
+				     impactMax);
+  gpuErrChk( cudaGetLastError() );
+}
 
 __global__ void cuSearchDoublet(const int* isBottom,
 				const float* rBvec, const float* zBvec, 
@@ -96,3 +136,30 @@ __global__ void cuSearchDoublet(const int* isBottom,
     }
   }
 }
+
+
+__global__ void cuTransformCoordinates(const int* isBottom,
+				       const float* spM,
+				       const int* nSpB,
+				       const float* spBmat,
+				       float* circBmat){
+  float xB = spBmat[threadIdx.x+(*nSpB)*0];
+  float yB = spBmat[threadIdx.x+(*nSpB)*1];
+  float zB = spBmat[threadIdx.x+(*nSpB)*2];
+  float rB = spBmat[threadIdx.x+(*nSpB)*3];
+  float varianceR = spBmat[threadIdx.x+(*nSpB)*4];
+  float varianceZ = spBmat[threadIdx.x+(*nSpB)*5];
+  //float deltaX = spM[0];
+  
+  
+}
+
+__global__ void cuSearchTriplet(const float* spM,
+				const int* nSpB, const float* circBmat,
+				const int* nSpT, const float* circTmat,
+				const float* maxScatteringAngle2, const float* sigmaScattering,
+				const float* minHelixDiameter2,    const float* pT2perRadius,
+				const float* impactMax ){
+  
+}
+

@@ -22,6 +22,22 @@ public:
 			     const float* collisionRegionMax, 
 			     int* isCompatible );
 
+  static void TransformCoordinates( dim3 grid, dim3 block,
+				    const int*   isBottom, 
+				    const float* spM,
+				    const int*   nSpB,
+				    const float* spBmat,
+				    float* circBmat);
+  
+  static void SearchTriplet( dim3 grid, dim3 block,
+			     const float* spM,
+			     const int* nSpB, const float* spBmat,
+			     const int* nSpT, const float* spTmat,
+			     const float* maxScatteringAngle2, const float* sigmaScattering,
+			     const float* minHelixDiameter2,    const float* pT2perRadius,
+			     const float* impactMax 
+			     );
+				     
 private:
   
 };
