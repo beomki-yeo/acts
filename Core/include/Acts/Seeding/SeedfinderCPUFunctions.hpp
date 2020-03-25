@@ -19,7 +19,7 @@ namespace Acts{
   public: 
     
     static std::vector<const InternalSpacePoint<external_spacepoint_t>*>
-    SearchDoublet(bool isBottom, sp_range_t& SPs,
+    searchDoublet(bool isBottom, sp_range_t& SPs,
 		  const InternalSpacePoint<external_spacepoint_t>& spM,
 		  const SeedfinderConfig<external_spacepoint_t>& config);
 
@@ -29,7 +29,7 @@ namespace Acts{
 
 
     static std::vector<std::pair< float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
-    SearchTriplet(const InternalSpacePoint<external_spacepoint_t>& spM,
+    searchTriplet(const InternalSpacePoint<external_spacepoint_t>& spM,
 		  const std::vector<const InternalSpacePoint<external_spacepoint_t>*>& compatBottomSP,
 		  const std::vector<const InternalSpacePoint<external_spacepoint_t>*>& compatTopSP,
 		  const std::vector<LinCircle>& linCircleBottom,

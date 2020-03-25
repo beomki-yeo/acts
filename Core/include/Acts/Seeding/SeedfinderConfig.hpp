@@ -19,10 +19,6 @@ template <typename SpacePoint>
 struct SeedfinderConfig {
   std::shared_ptr<Acts::SeedFilter<SpacePoint>> seedFilter;
 
-  // For testing purpose where the number of middle points to iterated is reduced
-  bool simpleTest         = false;
-  int  nMiddleSPsToIterate = 10;
-
   // Seed Cuts
   // lower cutoff for seeds in MeV
   // FIXME: Acts units

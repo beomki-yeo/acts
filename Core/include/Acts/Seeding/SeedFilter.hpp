@@ -17,6 +17,8 @@
 #include "Acts/Seeding/InternalSeed.hpp"
 #include "Acts/Seeding/Seed.hpp"
 
+#include <cuda.h>
+
 namespace Acts {
 struct SeedFilterConfig {
   // the allowed delta between two inverted seed radii for them to be considered

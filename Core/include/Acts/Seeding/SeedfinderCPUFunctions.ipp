@@ -10,7 +10,7 @@ namespace Acts{
 
   template< typename external_spacepoint_t, typename sp_range_t >
   std::vector<const InternalSpacePoint<external_spacepoint_t>*>
-  SeedfinderCPUFunctions<external_spacepoint_t, sp_range_t>::SearchDoublet(
+  SeedfinderCPUFunctions<external_spacepoint_t, sp_range_t>::searchDoublet(
     bool isBottom, sp_range_t& SPs,
     const InternalSpacePoint<external_spacepoint_t>& spM,
     const SeedfinderConfig<external_spacepoint_t>& config){
@@ -134,7 +134,7 @@ namespace Acts{
 
   template< typename external_spacepoint_t, typename sp_range_t >
   std::vector<std::pair< float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
-  SeedfinderCPUFunctions<external_spacepoint_t, sp_range_t>::SearchTriplet(
+  SeedfinderCPUFunctions<external_spacepoint_t, sp_range_t>::searchTriplet(
       const InternalSpacePoint<external_spacepoint_t>& spM,
       const std::vector<const InternalSpacePoint<external_spacepoint_t>*>& compatBottomSP,
       const std::vector<const InternalSpacePoint<external_spacepoint_t>*>& compatTopSP,

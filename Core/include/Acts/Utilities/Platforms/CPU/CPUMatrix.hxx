@@ -22,26 +22,35 @@ public:
     delete fHostBuffer;
   }
 
-  void Set(int row, int col, Var_t val){
+  size_t GetNCols(){ return fNCols; }
+  size_t GetNRows(){ return fNRows; }
+
+  Var_t* GetEl(int row=0, int col=0){
+    return fHostBuffer->Get(row+col*fNRows);
+  }
+  
+  void SetEl(int row, int col, Var_t val){
     (*fHostBuffer)[row+col*fNRows]=val;
   }
   
-  Var_t* Get(int row=0, int col=0){
-    return fHostBuffer->data(row+col*fNRows);
-  }
-
-  size_t GetNCols(){ return fNCols; }
-  size_t GetNRows(){ return fNRows; }
-  
   Var_t* GetColumn(int col){
-    Var_t* ret = new Var_t[fNRows];
-    for (int i_r=0; i_r<fNRows; i_r++) ret[i_r] = (*fHostBuffer)[col*fNRows+i_r];
-    return ret;
+    // Need to retrive the pointer directly
+    return fHostBuffer->Get()+col*fNRows;
+
+    //Var_t* ret = new Var_t[fNRows];
+    //for (int i_r=0; i_r<fNRows; i_r++) ret[i_r] = (*fHostBuffer)[col*fNRows+i_r];
+    //return ret;
   }
   Var_t* GetRow(int row){    
     Var_t* ret = new Var_t[fNCols];
-    for (int i_c=0; i_c<fNCols; i_c++) ret[i_c] = (*fHostBuffer)[row+fNRows*i_c];
+    for(int i_c=0; i_c<fNCols; i_c++) ret[i_c] = (*fHostBuffer)[row+fNRows*i_c];
     return ret;    
+  }
+
+  void SetRow(int row, Var_t* input){
+    for(int i_c=0; i_c<fNCols; i_c++){
+      (*fHostBuffer)[row+fNRows*i_c]=input[i_c];
+    }
   }
   
 private:

@@ -29,9 +29,9 @@ public:
 
   ~CPUBuffer(){ cudaFreeHost(fHostPtr); }
 
-  //Var_t*  data(int index=0) const{ return fHostPtr+index; }
-  Var_t*  data(int index=0)      { return fHostPtr+index; }
+  Var_t* Get(int offset=0){ return fHostPtr+offset; }
 
+  // Need to test
    	Var_t& operator[](std::size_t idx)       { return fHostPtr[idx]; }
   const Var_t& operator[](std::size_t idx) const { return fHostPtr[idx]; }
 
