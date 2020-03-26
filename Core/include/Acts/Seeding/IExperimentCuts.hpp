@@ -39,7 +39,6 @@ class IExperimentCuts {
       float weight, const InternalSpacePoint<SpacePoint>& bottom,
       const InternalSpacePoint<SpacePoint>& middle,
       const InternalSpacePoint<SpacePoint>& top) const = 0;
-
   /// @param seeds contains pairs of weight and seed created for one middle
   /// space
   /// point
@@ -50,5 +49,39 @@ class IExperimentCuts {
       std::vector<
           std::pair<float, std::unique_ptr<const InternalSeed<SpacePoint>>>>
           seeds) const = 0;
+
 };
+
+#ifdef __CUDACC__
+#define CUDA_HOSTDEV __host__ __device__
+#else
+#define CUDA_HOSTDEV
+#endif
+  
+class CuIExperimentCuts{
+public:
+  //virtual ~CuIExperimentCuts() = default;  
+CUDA_HOSTDEV virtual float seedWeight(const float* bottom,
+				      const float* middle,
+				      const float* top) const = 0;
+CUDA_HOSTDEV virtual bool singleSeedCut(float weight,
+					const float* bottom,
+					const float* middle,
+					const float* top) const = 0;
+};
+  
 }  // namespace Acts
+
+/*
+#ifdef __CUDACC__
+class IcuExperimentCuts{
+__device__ virtual float seedWeight(const float* bottom,
+				   const float* middle,
+				   const float* top);
+__device__ virtual bool singleSeedCut(float weight,
+			      const float* bottom,
+			      const float* middle,
+			      const float* top);
+};
+#endif
+*/

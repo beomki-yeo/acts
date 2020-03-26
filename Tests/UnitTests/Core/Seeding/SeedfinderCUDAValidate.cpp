@@ -114,6 +114,7 @@ int main(int argc, char** argv) {
   std::cout << "read " << spVec.size() << " SP from file " << file << " in "
             << elapsed_read.count() << "s" << std::endl;
 
+  /// For CPU seed finder
   Acts::SeedfinderConfig<SpacePoint> config;
   // silicon detector max
   config.rMax = 160.;
@@ -141,15 +142,44 @@ int main(int argc, char** argv) {
   Acts::SeedFilterConfig sfconf;
   Acts::ATLASCuts<SpacePoint> atlasCuts = Acts::ATLASCuts<SpacePoint>();
   config.seedFilter = std::make_unique<Acts::SeedFilter<SpacePoint>>(
-      Acts::SeedFilter<SpacePoint>(sfconf, &atlasCuts));
-  Acts::Seedfinder<SpacePoint, Acts::CPU> seedfinder_cpu(config);
-  Acts::Seedfinder<SpacePoint, Acts::CUDA> seedfinder_cuda(config);
+      Acts::SeedFilter<SpacePoint>(sfconf, &atlasCuts));  
+  Acts::Seedfinder<SpacePoint> seedfinder_cpu(config);
+
+  /// For CUDA seed finder
+  Acts::CuSeedfinderConfig cuConfig;
+  // silicon detector max
+  cuConfig.rMax = 160.;
+  cuConfig.deltaRMin = 5.;
+  cuConfig.deltaRMax = 160.;
+  cuConfig.collisionRegionMin = -250.;
+  cuConfig.collisionRegionMax = 250.;
+  cuConfig.zMin = -2800.;
+  cuConfig.zMax = 2800.;
+  cuConfig.maxSeedsPerSpM = 5;
+  // 2.7 eta
+  cuConfig.cotThetaMax = 7.40627;
+  cuConfig.sigmaScattering = 1.00000;
+
+  cuConfig.minPt = 500.;
+  cuConfig.bFieldInZ = 0.00199724;
+
+  cuConfig.beamPos = {-.5, -.5};
+  cuConfig.impactMax = 10.;
+  Acts::CuATLASCuts cuAtlasCuts = Acts::CuATLASCuts();
+  cuConfig.seedFilter = Acts::CuSeedFilter(sfconf, &cuAtlasCuts);
+  
+  Acts::CuSeedfinder<SpacePoint> seedfinder_cuda(cuConfig);
 
   // covariance tool, sets covariances per spacepoint as required
   auto ct = [=](const SpacePoint& sp, float, float, float) -> Acts::Vector2D {
     return {sp.varianceR, sp.varianceZ};
   };
 
+  std::cout << "size of CuSeedfinderConfig : " << sizeof(Acts::CuSeedfinderConfig) << std::endl;
+  std::cout << "size of CuSeedFilter       : " << sizeof(Acts::CuSeedFilter*) << std::endl;
+  std::cout << "size of SeedFilterConfig   : " << sizeof(Acts::SeedFilterConfig) << std::endl;
+  std::cout << "size of CuAtlas            : " << sizeof(Acts::CuATLASCuts) << std::endl;
+  
   // setup spacepoint grid config
   Acts::SpacePointGridConfig gridConf;
   gridConf.bFieldInZ = config.bFieldInZ;
@@ -200,7 +230,7 @@ int main(int argc, char** argv) {
   auto end_cuda = std::chrono::system_clock::now();  
   std::chrono::duration<double> elapsec_cuda = end_cuda - start_cuda;
   std::cout << "CUDA Time: " << elapsec_cuda.count() << std::endl;
-
+  std::cout << "Number of regions: " << seedVector_cpu.size() << std::endl;
   /*
   int numSeeds = 0;
   for (auto& outVec : seedVector_cpu) {

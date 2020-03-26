@@ -14,13 +14,14 @@
 #include <Acts/Seeding/SeedfinderCPUFunctions.hpp>
 #include <Acts/Seeding/SeedfinderCUDAKernels.cuh>
 
+
 #define WARP_SIZE 64
 #define MAX_BLOCK_SIZE 1024
 
 namespace Acts {
 
-  template <typename external_spacepoint_t, typename architecture_t>
-  Seedfinder<external_spacepoint_t, architecture_t>::Seedfinder(
+  template <typename external_spacepoint_t>
+  Seedfinder<external_spacepoint_t>::Seedfinder(
     Acts::SeedfinderConfig<external_spacepoint_t> config)
     : m_config(std::move(config)) {
   // calculation of scattering using the highland formula
@@ -36,14 +37,12 @@ namespace Acts {
   m_config.minHelixDiameter2 =
       std::pow(m_config.minPt * 2 / m_config.pTPerHelixRadius, 2);
   m_config.pT2perRadius =
-      std::pow(m_config.highland / m_config.pTPerHelixRadius, 2);
+      std::pow(m_config.highland / m_config.pTPerHelixRadius, 2);    
   }
-
-  // CPU seed finding
-  template< typename external_spacepoint_t, typename architecture_t>
-  template< typename T, typename sp_range_t>
-  typename std::enable_if< std::is_same<T, Acts::CPU>::value, std::vector<Seed<external_spacepoint_t> > >::type
-  Seedfinder<external_spacepoint_t, architecture_t>::createSeedsForGroup(
+  
+  template< typename external_spacepoint_t>
+  template <typename sp_range_t>
+  std::vector<Seed<external_spacepoint_t>> Seedfinder<external_spacepoint_t>::createSeedsForGroup(
     sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const {
   std::vector<Seed<external_spacepoint_t>> outputVec;
 
@@ -85,37 +84,55 @@ namespace Acts {
     SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::transformCoordinates(compatTopSP, *spM, false, linCircleTop);
 
     std::cout << i_m << "   CPU Compatible Hits: " << compatBottomSP.size() << "  " << compatTopSP.size() << std::endl;
-    int i_b = 0; 
-    for (auto circ: linCircleBottom){      
-      std::cout << i_b << "  " << circ.Zo << "  " << circ.cotTheta << "  " << circ.iDeltaR << "  " << circ.Er << "  " << circ.U << "  " << circ.V << std::endl;
-      i_b++;
-    }
     
-    /*    
-    auto seedsPerSpM = SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::searchTriplet(*spM, compatBottomSP, compatTopSP, linCircleBottom, linCircleTop, m_config);
-    
-    m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
-    */
+    //int i_b = 0;    
+    //for (auto circ: linCircleBottom){      
+    // std::cout << i_b << "  " << circ.Zo << "  " << circ.cotTheta << "  " << circ.iDeltaR << "  " << circ.Er << "  " << circ.U << "  " << circ.V << std::endl;
+    //  i_b++;
+    //}
+       
+    //auto seedsPerSpM = SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::searchTriplet(*spM, compatBottomSP, compatTopSP, linCircleBottom, linCircleTop, m_config);
+    //m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
+   
   }
   
   return outputVec;
   }
 
-  
+  template <typename external_spacepoint_t>
+  CuSeedfinder<external_spacepoint_t>::CuSeedfinder(
+       Acts::CuSeedfinderConfig config)  
+    : m_config(std::move(config)) {
+    // calculation of scattering using the highland formula
+    // convert pT to p once theta angle is known
+    m_config.highland = 13.6 * std::sqrt(m_config.radLengthPerSeed) *
+      (1 + 0.038 * std::log(m_config.radLengthPerSeed));
+    float maxScatteringAngle = m_config.highland / m_config.minPt;
+    m_config.maxScatteringAngle2 = maxScatteringAngle * maxScatteringAngle;
+    // helix radius in homogeneous magnetic field. Units are Kilotesla, MeV and
+    // millimeter
+    // TODO: change using ACTS units
+    m_config.pTPerHelixRadius = 300. * m_config.bFieldInZ;
+    m_config.minHelixDiameter2 =
+      std::pow(m_config.minPt * 2 / m_config.pTPerHelixRadius, 2);
+    m_config.pT2perRadius =
+      std::pow(m_config.highland / m_config.pTPerHelixRadius, 2);
+  }
+    
   // CUDA seed finding
-  template< typename external_spacepoint_t, typename architecture_t>
-  template< typename T, typename sp_range_t>
-  typename std::enable_if< std::is_same<T, Acts::CUDA>::value, std::vector<Seed<external_spacepoint_t> > >::type
-  Seedfinder<external_spacepoint_t, architecture_t>::createSeedsForGroup(
+  template< typename external_spacepoint_t>
+  template <typename sp_range_t>
+  std::vector<Seed<external_spacepoint_t>>
+  CuSeedfinder<external_spacepoint_t>::createSeedsForGroup(
     sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const {
   std::vector<Seed<external_spacepoint_t>> outputVec;
 
   int isBottom_cpu;
   CUDA::Buffer<int> isBottom_cuda(1);
   
-  /* ---------------------------------
+  /*----------------------------------
      Algorithm 0. Matrix Flattening 
-  ------------------------------------*/
+  ----------------------------------*/
 
   // Get Size of spacepoints
   int nMiddle = 0;
@@ -175,13 +192,14 @@ namespace Acts {
   dim3 DS_BlockSize;
   dim3 DS_GridSize(nMiddle,1,1);
   
-  CUDA::Buffer<float> deltaRMin_cuda(1, &m_config.deltaRMin, 1);
-  CUDA::Buffer<float> deltaRMax_cuda(1, &m_config.deltaRMax, 1);
-  CUDA::Buffer<float> cotThetaMax_cuda(1, &m_config.cotThetaMax, 1);
-  CUDA::Buffer<float> collisionRegionMin_cuda(1, &m_config.collisionRegionMin, 1);
-  CUDA::Buffer<float> collisionRegionMax_cuda(1, &m_config.collisionRegionMax, 1);  
+  //CUDA::Buffer<float> deltaRMin_cuda(1, &m_config.deltaRMin, 1);
+  //CUDA::Buffer<float> deltaRMax_cuda(1, &m_config.deltaRMax, 1);
+  //CUDA::Buffer<float> cotThetaMax_cuda(1, &m_config.cotThetaMax, 1);
+  //CUDA::Buffer<float> collisionRegionMin_cuda(1, &m_config.collisionRegionMin, 1);
+  //CUDA::Buffer<float> collisionRegionMax_cuda(1, &m_config.collisionRegionMax, 1);  
   CUDA::Buffer<float> rM_cuda(nMiddle, spMmat_cpu.GetEl(0,3), nMiddle);
   CUDA::Buffer<float> zM_cuda(nMiddle, spMmat_cpu.GetEl(0,2), nMiddle);
+  CUDA::Buffer<Acts::CuSeedfinderConfig> config_cuda(1, &m_config, 1);
   
   ///// For bottom space points
   isBottom_cpu = true;
@@ -202,10 +220,11 @@ namespace Acts {
 					  isBottom_cuda.Get(),
 					  rB_cuda.Get(), zB_cuda.Get(), 
 					  rM_cuda.Get(), zM_cuda.Get(), 
-					  deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
-					  cotThetaMax_cuda.Get(),
-					  collisionRegionMin_cuda.Get(),collisionRegionMax_cuda.Get(),
-					  isCompatBottomSP_cuda.Get(offset*nMiddle) );
+					  //deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
+					  //cotThetaMax_cuda.Get(),
+					  //collisionRegionMin_cuda.Get(),collisionRegionMax_cuda.Get(),
+					  config_cuda.Get(),
+					  isCompatBottomSP_cuda.Get(offset*nMiddle));
     offset+=BlockSize;
   }
   // Rearrange the doublet 
@@ -245,9 +264,10 @@ namespace Acts {
 					  isBottom_cuda.Get(),
 					  rT_cuda.Get(), zT_cuda.Get(), 
 					  rM_cuda.Get(), zM_cuda.Get(), 
-					  deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
-					  cotThetaMax_cuda.Get(),
-					  collisionRegionMin_cuda.Get(),collisionRegionMax_cuda.Get(),
+					  //deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
+					  //cotThetaMax_cuda.Get(),
+					  //collisionRegionMin_cuda.Get(),collisionRegionMax_cuda.Get(),
+					  config_cuda.Get(),
 					  isCompatTopSP_cuda.Get(offset*nMiddle) );
     offset+= BlockSize;
   }
@@ -306,7 +326,7 @@ namespace Acts {
     for (int i=0; i<bIndex.size(); i++){
       int i_b = bIndex[i];
       spBcompMat_cpu.SetRow(i,spBmat_cpu.GetRow(i_b));
-    }    
+    }
     CUDA::Matrix<float> spBcompMat_cuda(nSpB,6, &spBcompMat_cpu); // input    
     CUDA::Matrix<float> circBcompMat_cuda(nSpB,6);                // output
 
@@ -338,31 +358,45 @@ namespace Acts {
 						spTcompMat_cuda.GetEl(0,0),
 						circTcompMat_cuda.GetEl(0,0));
 
-
     /* -----------------------------------
        Algorithm 3. Triplet Search (TS)
      -------------------------------------*/
     
     dim3 TS_GridSize(nSpB,1,1);
     dim3 TS_BlockSize(nSpT,1,1);
-    CUDA::Buffer<float> maxScatteringAngle2_cuda(1, &m_config.maxScatteringAngle2,1);
-    CUDA::Buffer<float> sigmaScattering_cuda(1, &m_config.sigmaScattering,1);
-    CUDA::Buffer<float> minHelixDiameter2_cuda(1, &m_config.minHelixDiameter2,1);
-    CUDA::Buffer<float> pT2perRadius_cuda(1, &m_config.pT2perRadius,1);
-    CUDA::Buffer<float> impactMax_cuda(1, &m_config.impactMax,1);
-
-    /*
+    //CUDA::Buffer<float> maxScatteringAngle2_cuda(1, &m_config.maxScatteringAngle2,1);
+    //CUDA::Buffer<float> sigmaScattering_cuda(1, &m_config.sigmaScattering,1);
+    //CUDA::Buffer<float> minHelixDiameter2_cuda(1, &m_config.minHelixDiameter2,1);
+    //CUDA::Buffer<float> pT2perRadius_cuda(1, &m_config.pT2perRadius,1);
+    //CUDA::Buffer<float> impactMax_cuda(1, &m_config.impactMax,1);
+    //auto sf_config = (m_config.seedFilter).m_cfg;    
+    //CUDA::Buffer<float> deltaInvHelixDiameter_cuda(1, &sf_config.deltaInvHelixDiameter,1);
+    //CUDA::Buffer<float> impactWeightFactor_cuda(1, &sf_config.impactWeightFactor,1);
+    //CUDA::Buffer<float> sf_deltaRMin_cuda(1, &sf_config.deltaRMin,1);
+    //CUDA::Buffer<float> compatSeedWeight_cuda(1, &sf_config.compatSeedWeight,1);
+    //CUDA::Buffer<size_t> compatSeedLimit_cuda(1, &sf_config.compatSeedLimit,1);    
+    
     SeedfinderCUDAKernels::searchTriplet(TS_GridSize, TS_BlockSize,
 					 spM_cuda.Get(),
+					 nSpB_cuda.Get(), spBcompMat_cuda.GetEl(0,0),
+					 nSpT_cuda.Get(), spTcompMat_cuda.GetEl(0,0),
 					 circBcompMat_cuda.GetEl(0,0),
 					 circTcompMat_cuda.GetEl(0,0),
-					 maxScatteringAngle2_cuda.Get(),
-					 sigmaScattering_cuda.Get(),
-					 minHelixDiameter2_cuda.Get(),
-					 pT2perRadius_cuda.Get(),
-					 impactMax_cuda.Get()
+					 config_cuda.Get()
+					 // seed finder config
+					 //maxScatteringAngle2_cuda.Get(),
+					 //sigmaScattering_cuda.Get(),
+					 //minHelixDiameter2_cuda.Get(),
+					 //pT2perRadius_cuda.Get(),
+					 //impactMax_cuda.Get(),
+					 // seed filter config
+					 //deltaInvHelixDiameter_cuda.Get(),
+					 //impactWeightFactor_cuda.Get(),
+					 //sf_deltaRMin_cuda.Get(),
+					 //compatSeedWeight_cuda.Get(),
+					 //compatSeedLimit_cuda.Get(),
 					 );
-    */
+    
 
     /*
     float* Zo        = circBcompMat_cuda.GetHostBuffer(nSpB,0,0);
@@ -377,119 +411,11 @@ namespace Acts {
     }
     */
     
-    /*
-    CUDA::Buffer<int>   nSpT_cuda(1, &nSpT);                // input
-    CUDA::Matrix<float> spTmat_cuda(tIndex.size(),6);       // input
-    */
-    
-
-    /*
-    dim3 ST_GridSize(nSpB,1,1);
-    dim3 ST_BlockSize(nSpT,1,1);
-    CUDA::Buffer<float> maxScatteringAngle2_cuda(1, &m_config.maxScatteringAngle2);
-    CUDA::Buffer<float> sigmaScattering_cuda(1, &m_config.sigmaScattering);
-    CUDA::Buffer<float> minHelixDiameter2_cuda(1, &m_config.minHelixDiameter2);
-    CUDA::Buffer<float> pT2perRadius_cuda(1, &m_config.pT2perRadius);
-    CUDA::Buffer<float> impactMax_cuda(1, &m_config.impactMax);
-
-    
-    SeedfinderCUDAKernels::SearchTriplet(ST_GridSize, ST_BlockSize,
-					 spM_cuda.Get(),
-					 nSpB_cuda.Get(), spBmat_cuda.Get(0,0),
-					 nSpT_cuda.Get(), spTmat_cuda.Get(0,0),
-					 maxScatteringAngle2_cuda.Get(),
-					 sigmaScattering_cuda.Get(),
-					 minHelixDiameter2_cuda.Get(),
-					 pT2perRadius_cuda.Get(),
-					 impactMax_cuda.Get()					 
-					 );
-    */
-  }
+  } 
   
-  /*
-  std::vector< int > middleIndex;
-  std::vector< std::vector< int > > compB_bot_index;
-  std::vector< std::vector< int > > compT_top_index;
-
-  int nM = 0;
-  int nB_group = 0;
-  int nT_group = 0;
-  
-  for (int i_m=0; i_m<nMiddle; i_m++){
-    
-    // Bottom
-    std::vector< int > bIndex;
-    for (int i=0; i<isCompatBottomMat_cpu.GetNRows(); i++){
-      if (*isCompatBottomMat_cpu.Get(i,i_m)) bIndex.push_back(i);
-    }
-
-    if (bIndex.empty()) continue;
-
-    // Top
-    std::vector< int > tIndex;
-    for (int i=0; i<isCompatTopMat_cpu.GetNRows(); i++){
-      if (*isCompatTopMat_cpu.Get(i,i_m)) tIndex.push_back(i);
-    }    
-    if (tIndex.empty()) continue;
-    
-    middleIndex.push_back(i_m);
-    compBindex.push_back(bIndex);
-    compTindex.push_back(tIndex);
-    
-    nB_group += bIndex.size();
-    nT_group += tIndex.size();
-    
-    //std::cout<< "CUDA Compatible Hits: " << bIndex.size() << "  " << tIndex.size() << std::endl;
-  }
-  nM=middleIndex.size();
-    
-  CUDA::Matrix<float> spM_cuda(nM,6);   // input (to be placed in SM)
-
-  for (int i=0; i<nM; i++){
-    int i_m = middleIndex[i];
-    for (int el=0; el<6; el++){
-      spM_cuda.SetColumn(el,spMmat_cpu.Get(el,i_m));
-    }
-  }
-  
-  // For bottom space point  
-  CUDA::Matrix<int>   imb_cuda(nB_group,1);   // input
-  CUDA::Matrix<float> spB_cuda(nB_group,6);   // input
-  CUDA::Matrix<float> circB_cuda(nB_group,6); // output 
-
-  for (int i=0; i<nM; i++){
-    for (int j=0; j<compBindex[i].size(); j++){
-      //w int[]
-      //imb_cuda.SetColumn(0,middleIndex[i]);
-
-      
-      for (int el=0; el<6; el++){      
-	spB_cuda.SetColumn(el,spBmat_cpu.Get(el,compBindex[i][j])); // x
-      }
-    }    
-  }
-
-  
-  BlockSize = fmin(WARP_SIZE,nB_group);
-  dim3 TC_BlockSize(BlockSize,1,1);
-  dim3 TC_GridSize(int(nB_group/BlockSize)+1,1,1);
-  isBottom_cpu = true;
-  isBottom_cuda.SetData(&isBottom_cpu,1);	
-  
-  SeedfinderCUDAKernels::TransformCoordinate( TC_BlockSize, TC_GridSize,
-					      // input
-					      isBottom_cuda.Get(),
-					      xyzrB_cuda.Get(0,0), xyzrB_cuda.Get(0,1),
-					      xyzrB_cuda.Get(0,2), xyzrB_cuda.Get(0,3),
-					      imb_cuda.Get(0,0),
-					      xyzrM_cuda.Get(0,0), xyzrM_cuda.Get(0,1),
-					      xyzrM_cuda.Get(0,2), xyzrM_cuda.Get(0,3),
-					      // output
-					      circB_cuda.Get(0,0), circB_cuda.Get(0,1),
-					      circB_cuda.Get(0,2), circB_cuda.Get(0,3),
-					      circB_cuda.Get(0,4), circB_cuda.Get(0,5) );
-  */  
   return outputVec;
   
-  }  // namespace Acts
-}
+  }
+
+}// namespace Acts
+

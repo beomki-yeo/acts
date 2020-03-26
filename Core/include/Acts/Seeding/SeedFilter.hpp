@@ -17,8 +17,6 @@
 #include "Acts/Seeding/InternalSeed.hpp"
 #include "Acts/Seeding/Seed.hpp"
 
-#include <cuda.h>
-
 namespace Acts {
 struct SeedFilterConfig {
   // the allowed delta between two inverted seed radii for them to be considered
@@ -74,14 +72,46 @@ class SeedFilter {
   /// for all seeds with the same middle space point
   /// @return vector of all InternalSeeds that not filtered out
   virtual void filterSeeds_1SpFixed(
-      std::vector<std::pair<
+	  std::vector<std::pair<
           float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>&
           seedsPerSpM,
       std::vector<Seed<external_spacepoint_t>>& outVec) const;
 
+  SeedFilterConfig GetConfiguration(){return m_cfg;}
+  
  private:
   const SeedFilterConfig m_cfg;
   const IExperimentCuts<external_spacepoint_t>* m_experimentCuts;
 };
+
+#ifdef __CUDACC__
+#define CUDA_HOSTDEV __host__ __device__
+#else
+#define CUDA_HOSTDEV
+#endif
+  
+class CuSeedFilter{
+public:
+  CuSeedFilter()=default;
+  CuSeedFilter(SeedFilterConfig config,
+	       CuIExperimentCuts* expCuts = 0);
+
+  
+  CUDA_HOSTDEV void filterSeeds_2SpFixed(const int*   threadId,
+					 const float* spM,
+					 const float* spB,
+					 const int*   nSpT,
+					 const float* spTmat,
+					 const bool*  isPassed,
+					 const float* curvatures,
+					 const float* impactParameters,
+					 const float* Zob){
+    printf("hi");
+  }
+  
+  SeedFilterConfig  m_cfg;
+  CuIExperimentCuts* m_experimentCuts;
+};
+  
 }  // namespace Acts
 #include "Acts/Seeding/SeedFilter.ipp"
