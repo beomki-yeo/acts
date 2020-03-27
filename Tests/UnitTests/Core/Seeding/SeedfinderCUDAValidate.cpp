@@ -163,22 +163,22 @@ int main(int argc, char** argv) {
   cuConfig.minPt = 500.;
   cuConfig.bFieldInZ = 0.00199724;
 
-  cuConfig.beamPos = {-.5, -.5};
+  //cuConfig.beamPos = {-.5, -.5};
   cuConfig.impactMax = 10.;
-  Acts::CuATLASCuts cuAtlasCuts = Acts::CuATLASCuts();
-  cuConfig.seedFilter = Acts::CuSeedFilter(sfconf, &cuAtlasCuts);
+  //Acts::CuATLASCuts cuAtlasCuts = Acts::CuATLASCuts();
+  Acts::CuIExperimentCuts cuExpCuts = Acts::CuIExperimentCuts();
+  //cuConfig.seedFilter = Acts::CuSeedFilter(sfconf, cuExpCuts);
   
   Acts::CuSeedfinder<SpacePoint> seedfinder_cuda(cuConfig);
 
+  std::cout << "size of CuSeedfinderConfig: " << sizeof(Acts::CuSeedfinderConfig) << std::endl;
+  std::cout << "size of CuSeedFilter: "       << sizeof(Acts::CuSeedFilter) << std::endl;
+  std::cout << "size of CuIExperimentCuts : " << sizeof(Acts::CuIExperimentCuts) << std::endl;
+  
   // covariance tool, sets covariances per spacepoint as required
   auto ct = [=](const SpacePoint& sp, float, float, float) -> Acts::Vector2D {
     return {sp.varianceR, sp.varianceZ};
   };
-
-  std::cout << "size of CuSeedfinderConfig : " << sizeof(Acts::CuSeedfinderConfig) << std::endl;
-  std::cout << "size of CuSeedFilter       : " << sizeof(Acts::CuSeedFilter*) << std::endl;
-  std::cout << "size of SeedFilterConfig   : " << sizeof(Acts::SeedFilterConfig) << std::endl;
-  std::cout << "size of CuAtlas            : " << sizeof(Acts::CuATLASCuts) << std::endl;
   
   // setup spacepoint grid config
   Acts::SpacePointGridConfig gridConf;
@@ -214,19 +214,21 @@ int main(int argc, char** argv) {
   std::chrono::duration<double> elapsec_cpu = end_cpu - start_cpu;
   std::cout << "CPU Time: " << elapsec_cpu.count() << std::endl;
   std::cout << "Number of regions: " << seedVector_cpu.size() << std::endl;
-
   
+
   ///////// CUDA
   group_count=0;
   std::vector<std::vector<Acts::Seed<SpacePoint>>> seedVector_cuda;
   auto start_cuda = std::chrono::system_clock::now();
   groupIt = spGroup.begin();
+  
   for (; !(groupIt == endOfGroups); ++groupIt) {
     seedVector_cuda.push_back(seedfinder_cuda.createSeedsForGroup(
         groupIt.bottom(), groupIt.middle(), groupIt.top()));
     group_count++;
     if (group_count >= nGroupToIterate) break;
   }
+  
   auto end_cuda = std::chrono::system_clock::now();  
   std::chrono::duration<double> elapsec_cuda = end_cuda - start_cuda;
   std::cout << "CUDA Time: " << elapsec_cuda.count() << std::endl;

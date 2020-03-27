@@ -27,7 +27,7 @@ __global__ void cuSearchTriplet(const float* spM,
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				Acts::CuSeedfinderConfig* config
+				const Acts::CuSeedfinderConfig* config
 				//const float* maxScatteringAngle2, const float* sigmaScattering,
 				//const float* minHelixDiameter2, const float* pT2perRadius,
 				//const float* impactMax,
@@ -74,7 +74,7 @@ namespace Acts{
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				Acts::CuSeedfinderConfig* config
+				const Acts::CuSeedfinderConfig* config
 				// finder config
 				//const float* maxScatteringAngle2, const float* sigmaScattering,
 				//const float* minHelixDiameter2, const float* pT2perRadius,
@@ -86,8 +86,8 @@ namespace Acts{
 				//const float* compatSeedWeight,
 				//const size_t* compatSeedLimit,
 				){
-  
-  cuSearchTriplet<<< grid, block, (3*sizeof(float)+sizeof(bool))*block.x >>>(
+    
+  cuSearchTriplet<<< grid, block, (4*sizeof(float)+2*sizeof(bool))*block.x >>>(
 			       spM,
 			       nSpB, spBmat,
 			       nSpT, spTmat,				     
@@ -244,15 +244,17 @@ __global__ void cuSearchTriplet(const float* spM,
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				Acts::CuSeedfinderConfig* config
+				const Acts::CuSeedfinderConfig* config
 				//const float* maxScatteringAngle2, const float* sigmaScattering,
 				//const float* minHelixDiameter2,    const float* pT2perRadius,
 				//const float* impactMax,
 				){
-  __shared__ extern bool  isPassed[];
   __shared__ extern float rT[];
   __shared__ extern float curvatures[];
   __shared__ extern float impactParameters[];
+  __shared__ extern bool  isPassed[];
+  __shared__ extern float weight[];
+  __shared__ extern bool  isTriplet[];
   
   int threadId = threadIdx.x;
   int blockId  = blockIdx.x;
@@ -271,7 +273,8 @@ __global__ void cuSearchTriplet(const float* spM,
   spB[3] = spBmat[blockId+(*nSpB)*3];
   spB[4] = spBmat[blockId+(*nSpB)*4];
   spB[5] = spBmat[blockId+(*nSpB)*5];
-  
+
+  // Zob values from CPU and CUDA are slightly different
   float Zob        = circBmat[blockId+(*nSpB)*0];
   float cotThetaB  = circBmat[blockId+(*nSpB)*1];
   float iDeltaRB   = circBmat[blockId+(*nSpB)*2];
@@ -282,17 +285,17 @@ __global__ void cuSearchTriplet(const float* spM,
   float scatteringInRegion2 = config->maxScatteringAngle2 * iSinTheta2;
   scatteringInRegion2 *= config->sigmaScattering * config->sigmaScattering;
 
-  float Zot        = circTmat[blockId+(*nSpT)*0];
-  float cotThetaT  = circTmat[blockId+(*nSpT)*1];
-  float iDeltaRT   = circTmat[blockId+(*nSpT)*2];
-  float ErT        = circTmat[blockId+(*nSpT)*3];
-  float Ut         = circTmat[blockId+(*nSpT)*4];
-  float Vt         = circTmat[blockId+(*nSpT)*5];
+  float Zot        = circTmat[threadId+(*nSpT)*0];
+  float cotThetaT  = circTmat[threadId+(*nSpT)*1];
+  float iDeltaRT   = circTmat[threadId+(*nSpT)*2];
+  float ErT        = circTmat[threadId+(*nSpT)*3];
+  float Ut         = circTmat[threadId+(*nSpT)*4];
+  float Vt         = circTmat[threadId+(*nSpT)*5];
 
   // add errors of spB-spM and spM-spT pairs and add the correlation term
   // for errors on spM
   float error2 = ErT + ErB +
-    2 * (cotThetaT * cotThetaT * varianceRM + varianceZM) * iDeltaRB * iDeltaRT;
+    2 * (cotThetaB * cotThetaT * varianceRM + varianceZM) * iDeltaRB * iDeltaRT;
   
   float deltaCotTheta = cotThetaB - cotThetaT;
   float deltaCotTheta2 = deltaCotTheta * deltaCotTheta;
@@ -305,9 +308,9 @@ __global__ void cuSearchTriplet(const float* spM,
   // if the error is larger than the difference in theta, no need to
   // compare with scattering
   if (deltaCotTheta2 - error2 > 0) {
-    deltaCotTheta = std::fabs(deltaCotTheta);
+    deltaCotTheta = fabs(deltaCotTheta);
     // if deltaTheta larger than the scattering for the lower pT cut, skip
-    error = std::sqrt(error2);
+    error = sqrt(error2);
     dCotThetaMinusError2 =
       deltaCotTheta2 + error2 - 2 * deltaCotTheta * error;
     // avoid taking root of scatteringInRegion
@@ -355,15 +358,43 @@ __global__ void cuSearchTriplet(const float* spM,
   // A and B allow calculation of impact params in U/V plane with linear
   // function
   // (in contrast to having to solve a quadratic function in x/y plane)
-  impactParameters[threadId] = std::fabs((A - B * rM) * rM);
-  curvatures[threadId] = B / std::sqrt(S2);
+  impactParameters[threadId] = fabs((A - B * rM) * rM);
+  curvatures[threadId] = B / sqrt(S2);
   
   if (impactParameters[threadId] > config->impactMax){
     isPassed[threadId] = false;
   }  
 
+  __syncthreads();
 
-  //config->seedFilter.filterSeeds_2SpFixed();
+  /*
+  if (threadId == 0 && blockId==0 ){
+    printf("%f %f %f %f %f %f  \n", Zob, cotThetaB, iDeltaRB, ErB, Ub, Vb);
+    printf("%f %f %f %f %f %f  \n", Zot, cotThetaT, iDeltaRT, ErT, Ut, Vt);
+  }
+  */
+
+  
+  if (threadId == 0 && blockId==0 ){
+    printf("%f %f %f \n", iSinTheta2, scatteringInRegion2, config->maxScatteringAngle2);
+  }
+  
+
+  
+  /*
+  if (threadId == 0 ){
+    int passCount =0;
+    for (int i=0; i<blockDim.x; i++){
+      if (isPassed[i] == true) passCount++;
+    }
+    if (passCount >0){
+      printf("Pass top seeds: %d \n", passCount);
+    }
+  }
+  */
+  /*
   config->seedFilter.filterSeeds_2SpFixed(&threadId, spM, spB, nSpT, spTmat,
-  					  isPassed, curvatures, impactParameters, &Zob);
+  					  isPassed, curvatures, impactParameters, &Zob,
+  					  weight, isTriplet);
+  */
 }

@@ -44,7 +44,7 @@ public:
 			     const int*   nSpT, const float* rTmat,			     
 			     const float* circBmat,
 			     const float* circTmat,
-			     Acts::CuSeedfinderConfig* config
+			     const Acts::CuSeedfinderConfig* config
 			     // finder config
 			     //const float* maxScatteringAngle2, const float* sigmaScattering,
 			     //const float* minHelixDiameter2,    const float* pT2perRadius,

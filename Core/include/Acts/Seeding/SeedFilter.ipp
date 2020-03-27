@@ -141,7 +141,7 @@ void SeedFilter<external_spacepoint_t>::filterSeeds_1SpFixed(
 #endif
   
 CuSeedFilter::CuSeedFilter(SeedFilterConfig config,
-			   CuIExperimentCuts* expCuts)
+			   CuIExperimentCuts expCuts)
   : m_cfg(config), m_experimentCuts(expCuts) {}
    
 }  // namespace Acts

@@ -61,7 +61,7 @@ class IExperimentCuts {
 // This class does not use virtual method as GPU can not accept the virtual table.
 // To use virtual method, we have to create the Derived class object inside device code, 
 // but there is no way to get CUDA compiler know the existence of derived class (e.g. ATLASCuts.hpp) defined outside Core directory....
-// The best way to solve this is might be using config parameters as SeedFilter does.
+// One  way to solve this is might be using config parameters as SeedFilter does.
 class CuIExperimentCuts{
 public:
 

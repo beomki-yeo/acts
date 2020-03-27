@@ -30,6 +30,7 @@ namespace Acts {
                       (1 + 0.038 * std::log(m_config.radLengthPerSeed));
   float maxScatteringAngle = m_config.highland / m_config.minPt;
   m_config.maxScatteringAngle2 = maxScatteringAngle * maxScatteringAngle;
+
   // helix radius in homogeneous magnetic field. Units are Kilotesla, MeV and
   // millimeter
   // TODO: change using ACTS units
@@ -91,8 +92,8 @@ namespace Acts {
     //  i_b++;
     //}
        
-    //auto seedsPerSpM = SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::searchTriplet(*spM, compatBottomSP, compatTopSP, linCircleBottom, linCircleTop, m_config);
-    //m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
+    auto seedsPerSpM = SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::searchTriplet(*spM, compatBottomSP, compatTopSP, linCircleBottom, linCircleTop, m_config);
+    m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
    
   }
   
@@ -109,6 +110,7 @@ namespace Acts {
       (1 + 0.038 * std::log(m_config.radLengthPerSeed));
     float maxScatteringAngle = m_config.highland / m_config.minPt;
     m_config.maxScatteringAngle2 = maxScatteringAngle * maxScatteringAngle;
+
     // helix radius in homogeneous magnetic field. Units are Kilotesla, MeV and
     // millimeter
     // TODO: change using ACTS units

@@ -189,8 +189,22 @@ namespace Acts{
       curvatures.clear();
       impactParameters.clear();
       for (size_t t = 0; t < numTopSP; t++) {
+	
         auto lt = linCircleTop[t];
 
+	/*
+	if (t==0 && b==0){
+	  printf("%f %f %f %f %f %f  \n", Zob, cotThetaB, iDeltaRB, ErB, Ub, Vb);
+	  printf("%f %f %f %f %f %f  \n", lt.Zo, lt.cotTheta, lt.iDeltaR, lt.Er, lt.U, lt.V);
+	}
+	*/
+
+	/*
+	if (t==0 && b==0){
+	  printf("%f %f %f \n", iSinTheta2, scatteringInRegion2, config.maxScatteringAngle2);
+	}
+	*/
+	
         // add errors of spB-spM and spM-spT pairs and add the correlation term
         // for errors on spM
         float error2 = lt.Er + ErB +
@@ -262,8 +276,9 @@ namespace Acts{
           impactParameters.push_back(Im);
         }
       }
-
+      
       if (!topSpVec.empty()) {
+	std::cout << "Pass top seeds: " << topSpVec.size() << std::endl;
         std::vector<std::pair<
             float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
             sameTrackSeeds;

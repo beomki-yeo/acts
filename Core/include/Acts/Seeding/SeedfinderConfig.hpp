@@ -100,7 +100,7 @@ struct SeedfinderConfig {
 };
   
 struct CuSeedfinderConfig {
-  Acts::CuSeedFilter seedFilter;
+  //Acts::CuSeedFilter seedFilter;
   float minPt = 400.;
   float cotThetaMax = 7.40627;
   float deltaRMin = 5;
@@ -117,7 +117,7 @@ struct CuSeedfinderConfig {
   float rMax = 600;
   float rMin = 33;
   float bFieldInZ = 0.00208;
-  Acts::Vector2D beamPos{0, 0};
+  //Acts::Vector2D beamPos{0, 0};
   float radLengthPerSeed = 0.05;
   float zAlign = 0;
   float rAlign = 0;

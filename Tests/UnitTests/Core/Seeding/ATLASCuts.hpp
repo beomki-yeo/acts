@@ -86,36 +86,6 @@ ATLASCuts<SpacePoint>::cutPerMiddleSP(
     return std::move(newSeedsVector);
   }
   return std::move(seeds);
-}
-
-#ifdef __CUDACC__
-#define CUDA_HOSTDEV __host__ __device__
-#else
-#define CUDA_HOSTDEV
-#endif
-  
-class CuATLASCuts : public CuIExperimentCuts{
-public:
-  CUDA_HOSTDEV float seedWeight(const float* bottom,
-			      const float* middle,
-			      const float* top) const {
-    float weight = 0;
-    if (bottom[3] > 150) {
-      weight = 400;
-    }
-    if (top[3] < 150) {
-      weight = 200;
-    }
-    return weight;
-  }
-  
-  CUDA_HOSTDEV bool singleSeedCut(float weight,
-				  const float* bottom,
-				  const float* middle,
-				  const float* top) const {
-    return !(bottom[3] > 150. && weight < 380.);
-  }
-};
-  
+}  
 }  // namespace Acts
 
