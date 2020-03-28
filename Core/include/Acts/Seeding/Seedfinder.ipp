@@ -84,7 +84,7 @@ namespace Acts {
     SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::transformCoordinates(compatBottomSP, *spM, true, linCircleBottom);
     SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::transformCoordinates(compatTopSP, *spM, false, linCircleTop);
 
-    std::cout << i_m << "   CPU Compatible Hits: " << compatBottomSP.size() << "  " << compatTopSP.size() << std::endl;
+    //std::cout << i_m << "   CPU Compatible Hits: " << compatBottomSP.size() << "  " << compatTopSP.size() << std::endl;
     
     //int i_b = 0;    
     //for (auto circ: linCircleBottom){      
@@ -193,104 +193,71 @@ namespace Acts {
   int  BlockSize;
   dim3 DS_BlockSize;
   dim3 DS_GridSize(nMiddle,1,1);
-  
-  //CUDA::Buffer<float> deltaRMin_cuda(1, &m_config.deltaRMin, 1);
-  //CUDA::Buffer<float> deltaRMax_cuda(1, &m_config.deltaRMax, 1);
-  //CUDA::Buffer<float> cotThetaMax_cuda(1, &m_config.cotThetaMax, 1);
-  //CUDA::Buffer<float> collisionRegionMin_cuda(1, &m_config.collisionRegionMin, 1);
-  //CUDA::Buffer<float> collisionRegionMax_cuda(1, &m_config.collisionRegionMax, 1);  
+
+  CUDA::Buffer<int>   offset_cuda(1, &offset, 1);
+  CUDA::Buffer<float> deltaRMin_cuda(1, &m_config.deltaRMin, 1);
+  CUDA::Buffer<float> deltaRMax_cuda(1, &m_config.deltaRMax, 1);
+  CUDA::Buffer<float> cotThetaMax_cuda(1, &m_config.cotThetaMax, 1);
+  CUDA::Buffer<float> collisionRegionMin_cuda(1, &m_config.collisionRegionMin, 1);
+  CUDA::Buffer<float> collisionRegionMax_cuda(1, &m_config.collisionRegionMax, 1);  
   CUDA::Buffer<float> rM_cuda(nMiddle, spMmat_cpu.GetEl(0,3), nMiddle);
   CUDA::Buffer<float> zM_cuda(nMiddle, spMmat_cpu.GetEl(0,2), nMiddle);
-  CUDA::Buffer<Acts::CuSeedfinderConfig> config_cuda(1, &m_config, 1);
+  CUDA::Buffer<float> rB_cuda(nBottom, spBmat_cpu.GetEl(0,3), nBottom);    
+  CUDA::Buffer<float> zB_cuda(nBottom, spBmat_cpu.GetEl(0,2), nBottom);
+  CUDA::Buffer<int>   nBottom_cuda(1, &nBottom, 1);
+  CUDA::Buffer<float> rT_cuda(nTop,    spTmat_cpu.GetEl(0,3), nTop);    
+  CUDA::Buffer<float> zT_cuda(nTop,    spTmat_cpu.GetEl(0,2), nTop);  
+  CUDA::Buffer<int>   nTop_cuda(1, &nTop, 1);
+  //CUDA::Buffer<Acts::CuSeedfinderConfig> config_cuda(1, &m_config, 1);
   
   ///// For bottom space points
   isBottom_cpu = true;
   isBottom_cuda.CopyH2D(&isBottom_cpu,1);	
-
-  CUDA::Buffer<int>   isCompatBottomSP_cuda(nBottom*nMiddle);
-  auto isCompatBottomMat_cpu  = CPU::Matrix<int>(nBottom, nMiddle);
+  CUDA::Matrix<int> isCompatBottomMat_cuda(nBottom, nMiddle);
   
   offset=0;
   while(offset<nBottom){
+    offset_cuda.CopyH2D(&offset,1);    
     BlockSize = fmin(MAX_BLOCK_SIZE,nBottom);
     BlockSize = fmin(BlockSize,nBottom-offset);
-    DS_BlockSize = dim3(BlockSize,1,1);    
-    CUDA::Buffer<float> rB_cuda(BlockSize, spBmat_cpu.GetEl(offset,3), BlockSize);    
-    CUDA::Buffer<float> zB_cuda(BlockSize, spBmat_cpu.GetEl(offset,2), BlockSize);  
-
-    SeedfinderCUDAKernels::searchDoublet( DS_GridSize, DS_BlockSize, 
+    DS_BlockSize = dim3(BlockSize,1,1);
+    SeedfinderCUDAKernels::searchDoublet( DS_GridSize, DS_BlockSize,
 					  isBottom_cuda.Get(),
-					  rB_cuda.Get(), zB_cuda.Get(), 
-					  rM_cuda.Get(), zM_cuda.Get(), 
-					  //deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
-					  //cotThetaMax_cuda.Get(),
-					  //collisionRegionMin_cuda.Get(),collisionRegionMax_cuda.Get(),
-					  config_cuda.Get(),
-					  isCompatBottomSP_cuda.Get(offset*nMiddle));
+					  rM_cuda.Get(), zM_cuda.Get(),
+					  nBottom_cuda.Get(), rB_cuda.Get(offset), zB_cuda.Get(offset), 
+					  deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
+					  cotThetaMax_cuda.Get(),
+					  collisionRegionMin_cuda.Get(),collisionRegionMax_cuda.Get(),
+					  //config_cuda.Get(),
+					  isCompatBottomMat_cuda.GetEl(offset,0));
     offset+=BlockSize;
   }
-  // Rearrange the doublet 
-  // Prev: [mid1: bot_1, ..., bot_N]    [mid2: bot_1, ..., bot_N] ...    [midN: bot_1, ..., bot_N]
-  //       [mid1: bot_N+1, ..., bot_2N] [mid2: bot_N+1, ..., bot_2N] ... [midN: bot_N+1, ..., bot_2N]
-  //       ...
-  //
-  // New : [mid1: bot_1, ..., bot_TN] [mid2: bot_1, ..., bot_TN] ... [midN: bot_1, ..., bot_TN]
-  auto bottomBuffer = std::shared_ptr<int>(isCompatBottomSP_cuda.GetHostBuffer(nBottom*nMiddle));
-  offset=0;
-  while(offset<nBottom){
-    BlockSize = fmin(MAX_BLOCK_SIZE,nBottom);
-    BlockSize = fmin(BlockSize,nBottom-offset);
-    for (int i_m=0; i_m<nMiddle; i_m++){     
-      std::copy(bottomBuffer.get()+offset*nMiddle+i_m*BlockSize,
-		bottomBuffer.get()+offset*nMiddle+(i_m+1)*BlockSize,
-		isCompatBottomMat_cpu.GetEl(offset,i_m));
-    }
-    offset+= BlockSize;
-  }
-  
+  CPU::Matrix<int>  isCompatBottomMat_cpu(nBottom, nMiddle, &isCompatBottomMat_cuda);
+
   ///// For top space points
   isBottom_cpu = false;
   isBottom_cuda.CopyH2D(&isBottom_cpu,1);	
-  CUDA::Buffer<int>   isCompatTopSP_cuda(nTop*nMiddle);
-  auto isCompatTopMat_cpu = CPU::Matrix<int>(nTop, nMiddle);
+  CUDA::Matrix<int> isCompatTopMat_cuda(nTop, nMiddle);
   
   offset=0;
   while(offset<nTop){
+    offset_cuda.CopyH2D(&offset,1);    
     BlockSize = fmin(MAX_BLOCK_SIZE,nTop);
     BlockSize = fmin(BlockSize,nTop-offset);
-    DS_BlockSize = dim3(BlockSize,1,1);    
-    CUDA::Buffer<float> rT_cuda(BlockSize, spTmat_cpu.GetEl(offset,3), BlockSize);    
-    CUDA::Buffer<float> zT_cuda(BlockSize, spTmat_cpu.GetEl(offset,2), BlockSize);  
+    DS_BlockSize = dim3(BlockSize,1,1);
 
-    SeedfinderCUDAKernels::searchDoublet( DS_GridSize, DS_BlockSize, 
+    SeedfinderCUDAKernels::searchDoublet( DS_GridSize, DS_BlockSize,
 					  isBottom_cuda.Get(),
-					  rT_cuda.Get(), zT_cuda.Get(), 
-					  rM_cuda.Get(), zM_cuda.Get(), 
-					  //deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
-					  //cotThetaMax_cuda.Get(),
-					  //collisionRegionMin_cuda.Get(),collisionRegionMax_cuda.Get(),
-					  config_cuda.Get(),
-					  isCompatTopSP_cuda.Get(offset*nMiddle) );
+					  rM_cuda.Get(), zM_cuda.Get(),
+					  nTop_cuda.Get(), rT_cuda.Get(offset), zT_cuda.Get(offset), 
+					  deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
+					  cotThetaMax_cuda.Get(),
+					  collisionRegionMin_cuda.Get(),collisionRegionMax_cuda.Get(),
+					  //config_cuda.Get(),
+					  isCompatTopMat_cuda.GetEl(offset,0));
     offset+= BlockSize;
   }
-  // Rearrange the doublet 
-  // Prev: [mid1: top_1, ..., top_N]    [mid2: top_1, ..., top_N] ...    [midN: top_1, ..., top_N]
-  //       [mid1: top_N+1, ..., top_2N] [mid2: top_N+1, ..., top_2N] ... [midN: top_N+1, ..., top_2N]
-  //       ...
-  //
-  // New : [mid1: top_1, ..., top_TN] [mid2: top_1, ..., top_TN] ... [midN: top_1, ..., top_TN]
-  auto topBuffer = std::shared_ptr<int>(isCompatTopSP_cuda.GetHostBuffer(nTop*nMiddle));
-  offset=0;
-  while(offset<nTop){
-    BlockSize = fmin(MAX_BLOCK_SIZE,nTop);
-    BlockSize = fmin(BlockSize,nTop-offset);
-    for (int i_m=0; i_m<nMiddle; i_m++){
-      std::copy(topBuffer.get()+offset*nMiddle+i_m*BlockSize,
-		topBuffer.get()+offset*nMiddle+(i_m+1)*BlockSize,
-		isCompatTopMat_cpu.GetEl(offset,i_m));
-    }
-    offset+= BlockSize;
-  }
+  CPU::Matrix<int>  isCompatTopMat_cpu(nTop, nMiddle, &isCompatTopMat_cuda);
   
   for (int i_m=0; i_m<nMiddle; i_m++){
     
@@ -306,7 +273,7 @@ namespace Acts {
     }
     if (tIndex.empty()) continue;
 
-    std::cout<< "CUDA Compatible Hits: " << bIndex.size() << "  " << tIndex.size() << std::endl;
+    //std::cout << i_m << "  CUDA Compatible Hits: " << bIndex.size() << "  " << tIndex.size() << std::endl;
 
     /* -----------------------------------------
        Algorithm 2. Transform Coordinates (TC)
@@ -377,7 +344,8 @@ namespace Acts {
     //CUDA::Buffer<float> sf_deltaRMin_cuda(1, &sf_config.deltaRMin,1);
     //CUDA::Buffer<float> compatSeedWeight_cuda(1, &sf_config.compatSeedWeight,1);
     //CUDA::Buffer<size_t> compatSeedLimit_cuda(1, &sf_config.compatSeedLimit,1);    
-    
+
+    /*
     SeedfinderCUDAKernels::searchTriplet(TS_GridSize, TS_BlockSize,
 					 spM_cuda.Get(),
 					 nSpB_cuda.Get(), spBcompMat_cuda.GetEl(0,0),
@@ -399,7 +367,7 @@ namespace Acts {
 					 //compatSeedLimit_cuda.Get(),
 					 );
     
-
+    */
     /*
     float* Zo        = circBcompMat_cuda.GetHostBuffer(nSpB,0,0);
     float* cot_theta = circBcompMat_cuda.GetHostBuffer(nSpB,0,1);

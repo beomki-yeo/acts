@@ -2,9 +2,9 @@
 
 #include "Acts/Utilities/Platforms/CUDA/CUDABuffer.cu"
 #include "Acts/Utilities/Platforms/CPU/CPUMatrix.hxx"
+#include "Acts/Utilities/Platforms/CPU/CPUBuffer.hxx"
 
 namespace Acts{
-
 
 template<typename Var_t>
 class CUDAMatrix{
@@ -24,7 +24,6 @@ public:
     fDevBuffer = new CUDABuffer<Var_t>(fNCols*fNRows);
     CopyH2D(mat->GetEl(0,0),fNRows*fNCols,0);
   }
-
   
   ~CUDAMatrix(){
     delete fDevBuffer;
@@ -38,9 +37,13 @@ public:
   }
     
   Var_t* GetHostBuffer(size_t len, size_t row, size_t col){
-    fDevBuffer->GetHostBuffer(len, row+col*fNRows);
+    return fDevBuffer->GetHostBuffer(len, row+col*fNRows);
   }
 
+  CPUBuffer<Var_t>* GetCPUBuffer(size_t len, size_t row, size_t col){
+    return fDevBuffer->GetCPUBuffer(len, row+col*fNRows);
+  }
+  
   void CopyH2D(Var_t* buffer, int len, int offset=0){
     fDevBuffer->CopyH2D(buffer,len,offset);
   }

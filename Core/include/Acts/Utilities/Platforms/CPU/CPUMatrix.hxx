@@ -2,11 +2,15 @@
 #define CPUMATRIX
 
 #include "Acts/Utilities/Platforms/CPU/CPUBuffer.hxx"
+#include "Acts/Utilities/Platforms/CUDA/CUDAMatrix.cu"
 
 // column-major style Matrix Definition
 
 namespace Acts{
 
+template<typename Var_t>
+class CUDAMatrix;
+  
 template<typename Var_t>
 class CPUMatrix{
   
@@ -18,6 +22,13 @@ public:
     fNRows = nRows;
     fHostBuffer = new CPUBuffer<Var_t>(fNCols*fNRows);
   }
+
+  CPUMatrix(size_t nRows, size_t nCols, CUDAMatrix<Var_t>* cuMat){ 
+    fNCols = nCols;
+    fNRows = nRows;
+    fHostBuffer = cuMat->GetCPUBuffer(fNCols*fNRows,0,0);
+  }
+  
   ~CPUMatrix(){
     delete fHostBuffer;
   }

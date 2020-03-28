@@ -5,9 +5,13 @@
 #include <memory>
 #include "cuda.h"
 #include "cuda_runtime.h"
+#include "Acts/Utilities/Platforms/CUDA/CUDABuffer.cu"
 
 namespace Acts{
 
+template<typename Var_t>
+class CUDABuffer;
+  
 template<typename Var_t>
 class CPUBuffer{
 
@@ -21,12 +25,21 @@ public:
     cudaMallocHost(&fHostPtr, fSize*sizeof(Var_t));
   }
 
+  /*
+  CPUBuffer(int size, CUDABuffer<Var_t>* cuBuf){ 
+    fSize = size;
+    // pinned memory definition
+    this = cuBuf->GetCPUBuffer(fSize,0);
+  }
+  */
+  /*
   CPUBuffer(int size, Var_t* buffer){   
     fSize = size;
     cudaMallocHost(&fHostPtr, fSize*sizeof(Var_t));
     fHostPtr = buffer;
   }
-
+  */
+  
   ~CPUBuffer(){ cudaFreeHost(fHostPtr); }
 
   Var_t* Get(int offset=0){ return fHostPtr+offset; }

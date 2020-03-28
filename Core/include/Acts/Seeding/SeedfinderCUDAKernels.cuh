@@ -21,14 +21,14 @@ public:
   
   static void searchDoublet( dim3 grid, dim3 block,
 			     const int* isBottom, 
-			     const float* rBvec, const float* zBvec, 
 			     const float* rMvec, const float* zMvec,
-			     const Acts::CuSeedfinderConfig* config,
-			     int* isCompatible 
-			     //const float* deltaRMin, const float* deltaRMax,
-			     //const float* cotThetaMax, 
-			     //const float* collisionRegionMin, 
-			     //const float* collisionRegionMax,
+			     const int* nSpB, const float* rBvec, const float* zBvec, 
+			     //const Acts::CuSeedfinderConfig* config,
+			     const float* deltaRMin, const float* deltaRMax,
+			     const float* cotThetaMax, 
+			     const float* collisionRegionMin, 
+			     const float* collisionRegionMax,
+			     int* isCompatible 			     
 			     );
 
   static void transformCoordinates( dim3 grid, dim3 block,
@@ -39,16 +39,19 @@ public:
 				    float* circBmat);
   
   static void searchTriplet( dim3 grid, dim3 block,
+			     const int*   offset,
 			     const float* spM,
 			     const int*   nSpB, const float* rBmat,
 			     const int*   nSpT, const float* rTmat,			     
 			     const float* circBmat,
 			     const float* circTmat,
-			     const Acts::CuSeedfinderConfig* config
-			     // finder config
-			     //const float* maxScatteringAngle2, const float* sigmaScattering,
-			     //const float* minHelixDiameter2,    const float* pT2perRadius,
-			     //const float* impactMax,
+			     const float* maxScatteringAngle2, const float* sigmaScattering,
+			     const float* minHelixDiameter2,    const float* pT2perRadius,
+			     const float* impactMax,
+			     int* nTopPass,
+			     int* tIndex	     
+			     //const Acts::CuSeedfinderConfig* config
+			     // finder config			     
 			     // filter config
 			     //const float* deltaInvHelixDiameter,
 			     //const float* impactWeightFactor,

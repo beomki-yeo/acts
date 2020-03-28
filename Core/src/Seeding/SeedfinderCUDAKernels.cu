@@ -7,13 +7,13 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
-__global__ void cuSearchDoublet(const int* isBottom,  
-				const float* rBvec, const float* zBvec, 
+__global__ void cuSearchDoublet(const int* isBottom,
 				const float* rMvec, const float* zMvec,
-				const Acts::CuSeedfinderConfig* config,
-				int* isCompatible
-				//const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
-				//const float* collisionRegionMin, const float* collisionRegionMax,
+				const int* nSpB, const float* rBvec, const float* zBvec, 
+				//const Acts::CuSeedfinderConfig* config,
+				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
+				const float* collisionRegionMin, const float* collisionRegionMax,
+				int* isCompatible				
 				);
 
 __global__ void cuTransformCoordinates(const int* isBottom,
@@ -22,15 +22,18 @@ __global__ void cuTransformCoordinates(const int* isBottom,
 					const float* spBmat,
 					float* circBmat);
 
-__global__ void cuSearchTriplet(const float* spM,
+__global__ void cuSearchTriplet(const int*   offset,
+				const float* spM,
 				const int*   nSpB, const float* spBmat,
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				const Acts::CuSeedfinderConfig* config
-				//const float* maxScatteringAngle2, const float* sigmaScattering,
-				//const float* minHelixDiameter2, const float* pT2perRadius,
-				//const float* impactMax,
+				//const Acts::CuSeedfinderConfig* config
+				const float* maxScatteringAngle2, const float* sigmaScattering,
+				const float* minHelixDiameter2, const float* pT2perRadius,
+				const float* impactMax,
+				int* nTopPass,
+				int* tIndex
 				);
 
 namespace Acts{
@@ -39,19 +42,21 @@ namespace Acts{
   void SeedfinderCUDAKernels::searchDoublet(
 			        dim3 grid, dim3 block,
 				const int* isBottom,
-				const float* rBvec, const float* zBvec, 
 				const float* rMvec, const float* zMvec,
-				//const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
-				//const float* collisionRegionMin, const float* collisionRegionMax,
-				const Acts::CuSeedfinderConfig* config,
+				const int* nSpB, const float* rBvec, const float* zBvec, 
+				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
+				const float* collisionRegionMin, const float* collisionRegionMax,
+				//const Acts::CuSeedfinderConfig* config,
 				int* isCompatible  ){
     
-  cuSearchDoublet<<< grid, block >>>( isBottom,
-				      rBvec, zBvec, rMvec, zMvec,
-				      //deltaRMin, deltaRMax, cotThetaMax, 
-				      //collisionRegionMin, collisionRegionMax,
-				      config,
-				      isCompatible );
+  cuSearchDoublet<<< grid, block >>>(//offset,
+				     isBottom,
+				     rMvec, zMvec,
+				     nSpB, rBvec, zBvec, 
+				     deltaRMin, deltaRMax, cotThetaMax, 
+				     collisionRegionMin, collisionRegionMax,
+				     //config,
+				     isCompatible );
   gpuErrChk( cudaGetLastError() );
   }
 
@@ -69,16 +74,19 @@ namespace Acts{
 
   void SeedfinderCUDAKernels::searchTriplet(
 				dim3 grid, dim3 block,
+				const int*   offset,
 				const float* spM,
 				const int*   nSpB, const float* spBmat,
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				const Acts::CuSeedfinderConfig* config
+				//const Acts::CuSeedfinderConfig* config
 				// finder config
-				//const float* maxScatteringAngle2, const float* sigmaScattering,
-				//const float* minHelixDiameter2, const float* pT2perRadius,
-				//const float* impactMax,
+				const float* maxScatteringAngle2, const float* sigmaScattering,
+				const float* minHelixDiameter2, const float* pT2perRadius,
+				const float* impactMax,
+				int* nTopPass,
+				int* tIndex	  				
 				// filter config
 				//const float* deltaInvHelixDiameter,
 				//const float* impactWeightFactor,
@@ -88,14 +96,17 @@ namespace Acts{
 				){
     
   cuSearchTriplet<<< grid, block, (4*sizeof(float)+2*sizeof(bool))*block.x >>>(
+			       offset,
 			       spM,
 			       nSpB, spBmat,
 			       nSpT, spTmat,				     
 			       circBmat,circTmat,
-			       config				     
-			       //maxScatteringAngle2, sigmaScattering,
-			       //minHelixDiameter2, pT2perRadius,
-			       //impactMax,
+			       //config				     
+			       maxScatteringAngle2, sigmaScattering,
+			       minHelixDiameter2, pT2perRadius,
+			       impactMax,
+			       nTopPass,
+			       tIndex
 			       );
   gpuErrChk( cudaGetLastError() );
   }
@@ -103,43 +114,44 @@ namespace Acts{
 }
 
 __global__ void cuSearchDoublet(const int* isBottom,
-				const float* rBvec, const float* zBvec, 
 				const float* rMvec, const float* zMvec,
-				const Acts::CuSeedfinderConfig* config,				
-				int* isCompatible 
-				//const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
-				//const float* collisionRegionMin, const float* collisionRegionMax,
+				const int* nSpB, const float* rBvec, const float* zBvec, 	   
+				//const Acts::CuSeedfinderConfig* config,
+				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
+				const float* collisionRegionMin, const float* collisionRegionMax,
+				int* isCompatible 				
 				){
   
-  int globalId = threadIdx.x+blockDim.x*blockIdx.x;
+  int globalId = threadIdx.x+(*nSpB)*blockIdx.x;
   
   float rB = rBvec[threadIdx.x];
   float zB = zBvec[threadIdx.x];
   float rM = rMvec[blockIdx.x];
   float zM = zMvec[blockIdx.x];  
-
+  
   isCompatible[globalId] = true;
   
   // Doublet search for bottom hits
+  
   if (*isBottom == true){
 
     float deltaR = rM - rB;
 
-    if (deltaR > config->deltaRMax){
+    if (deltaR > *deltaRMax){
       isCompatible[globalId] = false;
     }
 
-    if (deltaR < config->deltaRMin){
+    if (deltaR < *deltaRMin){
       isCompatible[globalId] = false;
     }
 
     float cotTheta = (zM - zB)/deltaR;
-    if (fabs(cotTheta) > config->cotThetaMax){
+    if (fabs(cotTheta) > *cotThetaMax){
       isCompatible[globalId] = false;
     }
 
     float zOrigin = zM - rM*cotTheta;
-    if (zOrigin < config->collisionRegionMin || zOrigin > config->collisionRegionMax){
+    if (zOrigin < *collisionRegionMin || zOrigin > *collisionRegionMax){
       isCompatible[globalId] = false;
     }
   }
@@ -149,22 +161,22 @@ __global__ void cuSearchDoublet(const int* isBottom,
 
     float deltaR = rB - rM;
 
-    if (deltaR < config->deltaRMin){
+    if (deltaR < *deltaRMin){
       isCompatible[globalId] = false;
     }
 
-    if (deltaR > config->deltaRMax){
+    if (deltaR > *deltaRMax){
       isCompatible[globalId] = false;
     }
 
     if (isCompatible[globalId] == true){
       float cotTheta = (zB - zM)/deltaR;
-      if (fabs(cotTheta) > config->cotThetaMax){
+      if (fabs(cotTheta) > *cotThetaMax){
 	isCompatible[globalId] = false;
       }
       
       float zOrigin = zM - rM*cotTheta;
-      if (zOrigin < config->collisionRegionMin || zOrigin > config->collisionRegionMax){
+      if (zOrigin < *collisionRegionMin || zOrigin > *collisionRegionMax){
 	isCompatible[globalId] = false;
       }
     }
@@ -239,15 +251,18 @@ __global__ void cuTransformCoordinates(const int* isBottom,
   
 }
 
-__global__ void cuSearchTriplet(const float* spM,
+__global__ void cuSearchTriplet(const int*   offset,
+				const float* spM,
 				const int*   nSpB, const float* spBmat,
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				const Acts::CuSeedfinderConfig* config
-				//const float* maxScatteringAngle2, const float* sigmaScattering,
-				//const float* minHelixDiameter2,    const float* pT2perRadius,
-				//const float* impactMax,
+				//const Acts::CuSeedfinderConfig* config
+				const float* maxScatteringAngle2, const float* sigmaScattering,
+				const float* minHelixDiameter2,    const float* pT2perRadius,
+				const float* impactMax,
+				int* nTopPass,
+				int* tIndex				
 				){
   __shared__ extern float rT[];
   __shared__ extern float curvatures[];
@@ -282,8 +297,8 @@ __global__ void cuSearchTriplet(const float* spM,
   float Ub         = circBmat[blockId+(*nSpB)*4];
   float Vb         = circBmat[blockId+(*nSpB)*5];
   float iSinTheta2 = (1. + cotThetaB * cotThetaB);
-  float scatteringInRegion2 = config->maxScatteringAngle2 * iSinTheta2;
-  scatteringInRegion2 *= config->sigmaScattering * config->sigmaScattering;
+  float scatteringInRegion2 = (*maxScatteringAngle2) * iSinTheta2;
+  scatteringInRegion2 *= (*sigmaScattering) * (*sigmaScattering);
 
   float Zot        = circTmat[threadId+(*nSpT)*0];
   float cotThetaT  = circTmat[threadId+(*nSpT)*1];
@@ -337,14 +352,14 @@ __global__ void cuSearchTriplet(const float* spM,
   float B2 = B * B;
   // sqrt(S2)/B = 2 * helixradius
   // calculated radius must not be smaller than minimum radius
-  if (S2 < B2 * config->minHelixDiameter2) {
+  if (S2 < B2 * (*minHelixDiameter2)) {
     isPassed[threadId] = false;
   }
   
   // 1/helixradius: (B/sqrt(S2))/2 (we leave everything squared)
   float iHelixDiameter2 = B2 / S2;
   // calculate scattering for p(T) calculated from seed curvature
-  float pT2scatter = 4 * iHelixDiameter2 * config->pT2perRadius;
+  float pT2scatter = 4 * iHelixDiameter2 * (*pT2perRadius);
   // TODO: include upper pT limit for scatter calc
   // convert p(T) to p scaling by sin^2(theta) AND scale by 1/sin^4(theta)
   // from rad to deltaCotTheta
@@ -352,7 +367,7 @@ __global__ void cuSearchTriplet(const float* spM,
   // if deltaTheta larger than allowed scattering for calculated pT, skip
   if ((deltaCotTheta2 - error2 > 0) &&
       (dCotThetaMinusError2 >
-       p2scatter * config->sigmaScattering * config->sigmaScattering)) {
+       p2scatter * (*sigmaScattering) * (*sigmaScattering))) {
     isPassed[threadId] = false;
   }
   // A and B allow calculation of impact params in U/V plane with linear
@@ -361,11 +376,11 @@ __global__ void cuSearchTriplet(const float* spM,
   impactParameters[threadId] = fabs((A - B * rM) * rM);
   curvatures[threadId] = B / sqrt(S2);
   
-  if (impactParameters[threadId] > config->impactMax){
+  if (impactParameters[threadId] > (*impactMax)){
     isPassed[threadId] = false;
   }  
 
-  __syncthreads();
+  //__syncthreads();
 
   /*
   if (threadId == 0 && blockId==0 ){
@@ -374,11 +389,11 @@ __global__ void cuSearchTriplet(const float* spM,
   }
   */
 
-  
+  /*
   if (threadId == 0 && blockId==0 ){
     printf("%f %f %f \n", iSinTheta2, scatteringInRegion2, config->maxScatteringAngle2);
   }
-  
+  */
 
   
   /*

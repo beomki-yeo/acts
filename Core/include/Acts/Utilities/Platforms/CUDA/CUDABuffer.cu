@@ -4,6 +4,7 @@
 #include <memory>
 #include "cuda.h"
 #include "cuda_runtime.h"
+#include "Acts/Utilities/Platforms/CPU/CPUBuffer.hxx"
 
 namespace Acts{
 
@@ -34,11 +35,17 @@ public:
   }
 
   Var_t* Get(int offset=0) const{ return fDevPtr+offset; }
-
+  
   Var_t* GetHostBuffer(int len, int offset=0) const {
     Var_t* hostBuffer = new Var_t[len];
     cudaMemcpy(hostBuffer, fDevPtr+offset, len*sizeof(Var_t), cudaMemcpyDeviceToHost);   
     return hostBuffer;
+  }
+
+  CPUBuffer<Var_t>* GetCPUBuffer(int len, int offset=0) const {
+    CPUBuffer<Var_t>* cpuBuffer = new CPUBuffer<Var_t>(len);
+    cudaMemcpy(cpuBuffer->Get(), fDevPtr+offset, len*sizeof(Var_t), cudaMemcpyDeviceToHost);   
+    return cpuBuffer;
   }
   
   // Need to test

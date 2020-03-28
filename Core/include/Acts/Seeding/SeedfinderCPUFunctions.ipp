@@ -278,7 +278,7 @@ namespace Acts{
       }
       
       if (!topSpVec.empty()) {
-	std::cout << "Pass top seeds: " << topSpVec.size() << std::endl;
+	//std::cout << "Pass top seeds: " << topSpVec.size() << std::endl;
         std::vector<std::pair<
             float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
             sameTrackSeeds;
