@@ -133,15 +133,5 @@ void SeedFilter<external_spacepoint_t>::filterSeeds_1SpFixed(
         (*it).second->sp[2]->sp(), (*it).second->z()));
   }
 }
-
-#ifdef __CUDACC__
-#define CUDA_HOSTDEV __host__ __device__
-#else
-#define CUDA_HOSTDEV
-#endif
-  
-CuSeedFilter::CuSeedFilter(SeedFilterConfig config,
-			   CuIExperimentCuts expCuts)
-  : m_cfg(config), m_experimentCuts(expCuts) {}
    
 }  // namespace Acts

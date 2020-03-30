@@ -99,36 +99,6 @@ struct SeedfinderConfig {
   float pT2perRadius = 0;
 };
   
-struct CuSeedfinderConfig {
-  //Acts::CuSeedFilter seedFilter;
-  float minPt = 400.;
-  float cotThetaMax = 7.40627;
-  float deltaRMin = 5;
-  float deltaRMax = 270;
-  float impactMax = 20.;
-  float sigmaScattering = 5;
-  int maxSeedsPerSpM = 5;
-  float collisionRegionMin = -150;
-  float collisionRegionMax = +150;
-  float phiMin = -M_PI;
-  float phiMax = M_PI;
-  float zMin = -2800;
-  float zMax = 2800;
-  float rMax = 600;
-  float rMin = 33;
-  float bFieldInZ = 0.00208;
-  //Acts::Vector2D beamPos{0, 0};
-  float radLengthPerSeed = 0.05;
-  float zAlign = 0;
-  float rAlign = 0;
-  float sigmaError = 5;
-  float highland = 0;
-  float maxScatteringAngle2 = 0;
-  float pTPerHelixRadius = 0;
-  float minHelixDiameter2 = 0;
-  float pT2perRadius = 0;
-};  
-
 }  // namespace Acts
 
 

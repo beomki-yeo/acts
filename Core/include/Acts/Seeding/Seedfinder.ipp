@@ -17,8 +17,8 @@
 
 namespace Acts {
 
-  template <typename external_spacepoint_t>
-  Seedfinder<external_spacepoint_t>::Seedfinder(
+  template <typename external_spacepoint_t, typename architecture_t>
+  Seedfinder<external_spacepoint_t, architecture_t>::Seedfinder(
     Acts::SeedfinderConfig<external_spacepoint_t> config)
     : m_config(std::move(config)) {
   // calculation of scattering using the highland formula
@@ -38,9 +38,10 @@ namespace Acts {
       std::pow(m_config.highland / m_config.pTPerHelixRadius, 2);    
   }
   
-  template< typename external_spacepoint_t>
-  template <typename sp_range_t>
-  std::vector<Seed<external_spacepoint_t>> Seedfinder<external_spacepoint_t>::createSeedsForGroup(
+  template< typename external_spacepoint_t, typename architecture_t>
+  template< typename T, typename sp_range_t>
+  typename std::enable_if< std::is_same<T, Acts::CPU>::value, std::vector<Seed<external_spacepoint_t> > >::type
+  Seedfinder<external_spacepoint_t, architecture_t>::createSeedsForGroup(
     sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const {
   std::vector<Seed<external_spacepoint_t>> outputVec;
 
@@ -96,33 +97,12 @@ namespace Acts {
   
   return outputVec;
   }
-
-  template <typename external_spacepoint_t>
-  CuSeedfinder<external_spacepoint_t>::CuSeedfinder(
-       Acts::CuSeedfinderConfig config)  
-    : m_config(std::move(config)) {
-    // calculation of scattering using the highland formula
-    // convert pT to p once theta angle is known
-    m_config.highland = 13.6 * std::sqrt(m_config.radLengthPerSeed) *
-      (1 + 0.038 * std::log(m_config.radLengthPerSeed));
-    float maxScatteringAngle = m_config.highland / m_config.minPt;
-    m_config.maxScatteringAngle2 = maxScatteringAngle * maxScatteringAngle;
-
-    // helix radius in homogeneous magnetic field. Units are Kilotesla, MeV and
-    // millimeter
-    // TODO: change using ACTS units
-    m_config.pTPerHelixRadius = 300. * m_config.bFieldInZ;
-    m_config.minHelixDiameter2 =
-      std::pow(m_config.minPt * 2 / m_config.pTPerHelixRadius, 2);
-    m_config.pT2perRadius =
-      std::pow(m_config.highland / m_config.pTPerHelixRadius, 2);
-  }
-    
+  
   // CUDA seed finding
-  template< typename external_spacepoint_t>
-  template <typename sp_range_t>
-  std::vector<Seed<external_spacepoint_t>>
-  CuSeedfinder<external_spacepoint_t>::createSeedsForGroup(
+  template< typename external_spacepoint_t, typename architecture_t>
+  template< typename T, typename sp_range_t>
+  typename std::enable_if< std::is_same<T, Acts::CUDA>::value, std::vector<Seed<external_spacepoint_t> > >::type
+  Seedfinder<external_spacepoint_t, architecture_t>::createSeedsForGroup(
     sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const {
   std::vector<Seed<external_spacepoint_t>> outputVec;
 
@@ -392,30 +372,17 @@ namespace Acts {
     CPU::Matrix<float> curvatures_cpu(nTopPassLimit, nSpB, &curvatures_cuda);      
     CPU::Matrix<float> impactparameters_cpu(nTopPassLimit, nSpB, &impactparameters_cuda); 
 
-    // Convert to space_range_t objects
+    for (int i_b=0; i_b<nSpB; i_b++){
 
-    
-    /*
-    for (int i_b=0; i_b<nSpB; i_b++){
-      if (nTopPass_cpu[i_b] && i_b<5){
-	std::cout << i_b << "  "  << nTopPass_cpu[i_b] << std::endl;
-      }
+      // Convert to space_range_t objects
+      /*
+      
+      std::vector<std::pair<
+	float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
+	sameTrackSeeds;
+      sameTrackSeeds = std::move(config.seedFilter->filterSeeds_2SpFixed(*compatBottomSP[b], spM, topSpVec, curvatures, impactParameters,Zob));
+      */
     }
-    */
-    //std::cout << "hi2" << std::endl;
-    /*
-    float* Zo        = circBcompMat_cuda.GetHostBuffer(nSpB,0,0);
-    float* cot_theta = circBcompMat_cuda.GetHostBuffer(nSpB,0,1);
-    float* iDeltaR   = circBcompMat_cuda.GetHostBuffer(nSpB,0,2);
-    float* Er        = circBcompMat_cuda.GetHostBuffer(nSpB,0,3);    
-    float* U         = circBcompMat_cuda.GetHostBuffer(nSpB,0,4);
-    float* V         = circBcompMat_cuda.GetHostBuffer(nSpB,0,5);
-    
-    for (int i_b=0; i_b<nSpB; i_b++){
-      std::cout << i_b << "  " << Zo[i_b] << "  " << cot_theta[i_b] << "  " << iDeltaR[i_b] << "  " << Er[i_b] << "  "  << U[i_b] << "  " << V[i_b] << std::endl;
-    }
-    */
-    
   } 
   
   return outputVec;

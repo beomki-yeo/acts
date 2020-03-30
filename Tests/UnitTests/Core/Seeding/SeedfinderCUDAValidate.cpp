@@ -144,38 +144,9 @@ int main(int argc, char** argv) {
   Acts::ATLASCuts<SpacePoint> atlasCuts = Acts::ATLASCuts<SpacePoint>();
   config.seedFilter = std::make_unique<Acts::SeedFilter<SpacePoint>>(
       Acts::SeedFilter<SpacePoint>(sfconf, &atlasCuts));  
-  Acts::Seedfinder<SpacePoint> seedfinder_cpu(config);
+  Acts::Seedfinder<SpacePoint, Acts::CPU> seedfinder_cpu(config);
+  Acts::Seedfinder<SpacePoint, Acts::CUDA> seedfinder_cuda(config);
 
-  /// For CUDA seed finder
-  Acts::CuSeedfinderConfig cuConfig;
-  // silicon detector max
-  cuConfig.rMax = 160.;
-  cuConfig.deltaRMin = 5.;
-  cuConfig.deltaRMax = 160.;
-  cuConfig.collisionRegionMin = -250.;
-  cuConfig.collisionRegionMax = 250.;
-  cuConfig.zMin = -2800.;
-  cuConfig.zMax = 2800.;
-  cuConfig.maxSeedsPerSpM = 5;
-  // 2.7 eta
-  cuConfig.cotThetaMax = 7.40627;
-  cuConfig.sigmaScattering = 1.00000;
-
-  cuConfig.minPt = 500.;
-  cuConfig.bFieldInZ = 0.00199724;
-
-  //cuConfig.beamPos = {-.5, -.5};
-  cuConfig.impactMax = 10.;
-  //Acts::CuATLASCuts cuAtlasCuts = Acts::CuATLASCuts();
-  Acts::CuIExperimentCuts cuExpCuts = Acts::CuIExperimentCuts();
-  //cuConfig.seedFilter = Acts::CuSeedFilter(sfconf, cuExpCuts);
-  
-  Acts::CuSeedfinder<SpacePoint> seedfinder_cuda(cuConfig);
-
-  std::cout << "size of CuSeedfinderConfig: " << sizeof(Acts::CuSeedfinderConfig) << std::endl;
-  std::cout << "size of CuSeedFilter: "       << sizeof(Acts::CuSeedFilter) << std::endl;
-  std::cout << "size of CuIExperimentCuts : " << sizeof(Acts::CuIExperimentCuts) << std::endl;
-  
   // covariance tool, sets covariances per spacepoint as required
   auto ct = [=](const SpacePoint& sp, float, float, float) -> Acts::Vector2D {
     return {sp.varianceR, sp.varianceZ};

@@ -52,36 +52,4 @@ class IExperimentCuts {
 
 };
 
-#ifdef __CUDACC__
-#define CUDA_HOSTDEV __host__ __device__
-#else
-#define CUDA_HOSTDEV
-#endif
-
-// This class does not use virtual method as GPU can not accept the virtual table.
-// To use virtual method, we have to create the Derived class object inside device code, 
-// but there is no way to get CUDA compiler know the existence of derived class (e.g. ATLASCuts.hpp) defined outside Core directory....
-// The best way to solve this is might be using config parameters as SeedFilter does.
-class CuIExperimentCuts{
-public:
-
-  CUDA_HOSTDEV float seedWeight(const float* bottom,
-				const float* middle,
-				const float* top){
-    float weight = 0;
-    if (bottom[3] > 150) {
-      weight = 400;
-    }
-    if (top[3] < 150) {
-      weight = 200;
-    }
-    return weight;     
-  }
-  CUDA_HOSTDEV bool singleSeedCut(float weight,
-				  const float* bottom,
-				  const float* middle,
-				  const float* top){
-    return !(bottom[3] > 150. && weight < 380.);
-  }
-}; 
 }  // namespace Acts
