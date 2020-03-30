@@ -25,6 +25,11 @@ public:
     cudaMallocHost(&fHostPtr, fSize*sizeof(Var_t));
   }
 
+  CPUBuffer(size_t size, CUDABuffer<Var_t>* cuBuf){ 
+    fSize = size;
+    fHostPtr = (cuBuf->GetCPUBuffer(fSize,0))->Get();
+  }
+  
   /*
   CPUBuffer(int size, CUDABuffer<Var_t>* cuBuf){ 
     fSize = size;

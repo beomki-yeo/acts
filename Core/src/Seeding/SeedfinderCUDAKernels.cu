@@ -32,8 +32,11 @@ __global__ void cuSearchTriplet(const int*   offset,
 				const float* maxScatteringAngle2, const float* sigmaScattering,
 				const float* minHelixDiameter2, const float* pT2perRadius,
 				const float* impactMax,
+				const int*   nTopPassLimit,
 				int* nTopPass,
-				int* tIndex
+				int* tIndex,
+				float* curvatures,
+				float* impactparameters				
 				);
 
 namespace Acts{
@@ -83,10 +86,10 @@ namespace Acts{
 				//const Acts::CuSeedfinderConfig* config
 				// finder config
 				const float* maxScatteringAngle2, const float* sigmaScattering,
-				const float* minHelixDiameter2, const float* pT2perRadius,
-				const float* impactMax,
-				int* nTopPass,
-				int* tIndex	  				
+				const float* minHelixDiameter2,   const float* pT2perRadius,
+				const float* impactMax,           const int*   nTopPassLimit,	  
+				int*   nTopPass,   int*   tIndex,
+				float* curvatures, float* impactparameters
 				// filter config
 				//const float* deltaInvHelixDiameter,
 				//const float* impactWeightFactor,
@@ -95,7 +98,7 @@ namespace Acts{
 				//const size_t* compatSeedLimit,
 				){
     
-  cuSearchTriplet<<< grid, block, (4*sizeof(float)+2*sizeof(bool))*block.x >>>(
+  cuSearchTriplet<<< grid, block, sizeof(bool)*block.x >>>(
 			       offset,
 			       spM,
 			       nSpB, spBmat,
@@ -104,9 +107,10 @@ namespace Acts{
 			       //config				     
 			       maxScatteringAngle2, sigmaScattering,
 			       minHelixDiameter2, pT2perRadius,
-			       impactMax,
-			       nTopPass,
-			       tIndex
+			       impactMax, nTopPassLimit,
+			       //output
+			       nTopPass, tIndex,
+			       curvatures, impactparameters
 			       );
   gpuErrChk( cudaGetLastError() );
   }
@@ -261,20 +265,18 @@ __global__ void cuSearchTriplet(const int*   offset,
 				const float* maxScatteringAngle2, const float* sigmaScattering,
 				const float* minHelixDiameter2,    const float* pT2perRadius,
 				const float* impactMax,
+				const int*   nTopPassLimit,
 				int* nTopPass,
-				int* tIndex				
+				int* tIndex,
+				float* curvatures,
+				float* impactparameters
 				){
-  __shared__ extern float rT[];
-  __shared__ extern float curvatures[];
-  __shared__ extern float impactParameters[];
-  __shared__ extern bool  isPassed[];
-  __shared__ extern float weight[];
-  __shared__ extern bool  isTriplet[];
+  __shared__ extern bool isPassed[];
   
   int threadId = threadIdx.x;
   int blockId  = blockIdx.x;
 
-  rT[threadIdx.x] = spTmat[threadId+(*nSpT)*3];
+  //rT[threadIdx.x] = spTmat[threadId+(*nSpT)*3];
   
   float rM = spM[3];
   float zM = spM[2];
@@ -314,10 +316,9 @@ __global__ void cuSearchTriplet(const int*   offset,
   
   float deltaCotTheta = cotThetaB - cotThetaT;
   float deltaCotTheta2 = deltaCotTheta * deltaCotTheta;
-
   float error;
   float dCotThetaMinusError2;
-
+  
   isPassed[threadId] = true;
   
   // if the error is larger than the difference in theta, no need to
@@ -373,13 +374,29 @@ __global__ void cuSearchTriplet(const int*   offset,
   // A and B allow calculation of impact params in U/V plane with linear
   // function
   // (in contrast to having to solve a quadratic function in x/y plane)
-  impactParameters[threadId] = fabs((A - B * rM) * rM);
-  curvatures[threadId] = B / sqrt(S2);
+
+  //impactparameters[threadId] = fabs((A - B * rM) * rM);
+  //curvatures[threadId] = B / sqrt(S2);
+  float impact   = fabs((A - B * rM) * rM);
+  float invHelix = B / sqrt(S2);
   
-  if (impactParameters[threadId] > (*impactMax)){
+  if (impact > (*impactMax)){
     isPassed[threadId] = false;
   }  
 
+  // Consider a full reduction to count nTopPass
+  // Now just use atomicAdd
+  if (isPassed[threadId] == true){
+    int pos = atomicAdd(&nTopPass[blockId],1);
+    if (pos<*nTopPassLimit){
+      //printf("%d %d %d\n", blockId, pos, nTopPass[blockId]);
+      tIndex[pos]           = threadIdx.x + (*offset);
+      impactparameters[pos] = impact;
+      curvatures[pos]       = invHelix;
+      
+    }
+  }
+  
   //__syncthreads();
 
   /*
@@ -391,7 +408,7 @@ __global__ void cuSearchTriplet(const int*   offset,
 
   /*
   if (threadId == 0 && blockId==0 ){
-    printf("%f %f %f \n", iSinTheta2, scatteringInRegion2, config->maxScatteringAngle2);
+    printf("%f %f \n", iSinTheta2, scatteringInRegion2);
   }
   */
 

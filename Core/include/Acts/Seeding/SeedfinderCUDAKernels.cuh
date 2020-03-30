@@ -46,10 +46,10 @@ public:
 			     const float* circBmat,
 			     const float* circTmat,
 			     const float* maxScatteringAngle2, const float* sigmaScattering,
-			     const float* minHelixDiameter2,    const float* pT2perRadius,
-			     const float* impactMax,
-			     int* nTopPass,
-			     int* tIndex	     
+			     const float* minHelixDiameter2,   const float* pT2perRadius,
+			     const float* impactMax,           const int*   nTopPassLimit,
+			     int*   nTopPass,   int*   tIndex,
+			     float* curvatures, float* impactparameters
 			     //const Acts::CuSeedfinderConfig* config
 			     // finder config			     
 			     // filter config

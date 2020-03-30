@@ -13,10 +13,7 @@
 #include <chrono>
 #include <Acts/Seeding/SeedfinderCPUFunctions.hpp>
 #include <Acts/Seeding/SeedfinderCUDAKernels.cuh>
-
-
-#define WARP_SIZE 64
-#define MAX_BLOCK_SIZE 1024
+#include <Acts/Utilities/Platforms/CUDA/CuUtils.cu>
 
 namespace Acts {
 
@@ -194,7 +191,6 @@ namespace Acts {
   dim3 DS_BlockSize;
   dim3 DS_GridSize(nMiddle,1,1);
 
-  CUDA::Buffer<int>   offset_cuda(1, &offset, 1);
   CUDA::Buffer<float> deltaRMin_cuda(1, &m_config.deltaRMin, 1);
   CUDA::Buffer<float> deltaRMax_cuda(1, &m_config.deltaRMax, 1);
   CUDA::Buffer<float> cotThetaMax_cuda(1, &m_config.cotThetaMax, 1);
@@ -217,9 +213,9 @@ namespace Acts {
   
   offset=0;
   while(offset<nBottom){
-    offset_cuda.CopyH2D(&offset,1);    
-    BlockSize = fmin(MAX_BLOCK_SIZE,nBottom);
-    BlockSize = fmin(BlockSize,nBottom-offset);
+    //offset_cuda.CopyH2D(&offset,1);    
+    BlockSize    = fmin(MAX_BLOCK_SIZE,nBottom);
+    BlockSize    = fmin(BlockSize,nBottom-offset);
     DS_BlockSize = dim3(BlockSize,1,1);
     SeedfinderCUDAKernels::searchDoublet( DS_GridSize, DS_BlockSize,
 					  isBottom_cuda.Get(),
@@ -241,9 +237,9 @@ namespace Acts {
   
   offset=0;
   while(offset<nTop){
-    offset_cuda.CopyH2D(&offset,1);    
-    BlockSize = fmin(MAX_BLOCK_SIZE,nTop);
-    BlockSize = fmin(BlockSize,nTop-offset);
+    //offset_cuda.CopyH2D(&offset,1);    
+    BlockSize    = fmin(MAX_BLOCK_SIZE,nTop);
+    BlockSize    = fmin(BlockSize,nTop-offset);
     DS_BlockSize = dim3(BlockSize,1,1);
 
     SeedfinderCUDAKernels::searchDoublet( DS_GridSize, DS_BlockSize,
@@ -259,14 +255,12 @@ namespace Acts {
   }
   CPU::Matrix<int>  isCompatTopMat_cpu(nTop, nMiddle, &isCompatTopMat_cuda);
   
-  for (int i_m=0; i_m<nMiddle; i_m++){
-    
+  for (int i_m=0; i_m<nMiddle; i_m++){    
     std::vector< int > bIndex;
     for (int i=0; i<nBottom; i++){
       if (*isCompatBottomMat_cpu.GetEl(i,i_m)) bIndex.push_back(i);
     }
-    if (bIndex.empty()) continue;
-    
+    if (bIndex.empty()) continue;    
     std::vector< int > tIndex;
     for (int i=0; i<nTop; i++){
       if (*isCompatTopMat_cpu.GetEl(i,i_m)) tIndex.push_back(i);
@@ -282,16 +276,16 @@ namespace Acts {
     int nSpB = bIndex.size();
     int nSpT = tIndex.size();
     dim3 TC_GridSize;
-    dim3 TC_BlockSize(WARP_SIZE);
-    CUDA::Buffer<float> spM_cuda(6,spMmat_cpu.GetRow(i_m), 6); // input
+    dim3 TC_BlockSize(2*WARP_SIZE);
+    CUDA::Buffer<float> spM_cuda(6,spMmat_cpu.GetRow(i_m), 6);
     
-    // bottom
+    // bottom transform coordinate
     TC_GridSize = dim3(int(nSpB/TC_BlockSize.x)+1,1,1);
     isBottom_cpu = true;
     isBottom_cuda.CopyH2D(&isBottom_cpu,1);	
     
-    CUDA::Buffer<int>   nSpB_cuda(1, &nSpB, 1);    // input
-    CPU::Matrix<float> spBcompMat_cpu(nSpB,6);
+    CUDA::Buffer<int>   nSpB_cuda(1, &nSpB, 1); 
+    CPU::Matrix<float>  spBcompMat_cpu(nSpB,6);
     for (int i=0; i<bIndex.size(); i++){
       int i_b = bIndex[i];
       spBcompMat_cpu.SetRow(i,spBmat_cpu.GetRow(i_b));
@@ -306,13 +300,13 @@ namespace Acts {
 						spBcompMat_cuda.GetEl(0,0),
 						circBcompMat_cuda.GetEl(0,0));
 
-    // top
+    // top transform coordinate
     TC_GridSize = dim3(int(nSpT/TC_BlockSize.x)+1,1,1);
     isBottom_cpu = false;
     isBottom_cuda.CopyH2D(&isBottom_cpu,1);	
     
     CUDA::Buffer<int>   nSpT_cuda(1, &nSpT, 1);    // input
-    CPU::Matrix<float> spTcompMat_cpu(nSpT,6);
+    CPU::Matrix<float>  spTcompMat_cpu(nSpT,6);
     for (int i=0; i<tIndex.size(); i++){
       int i_t = tIndex[i];
       spTcompMat_cpu.SetRow(i,spTmat_cpu.GetRow(i_t));
@@ -332,12 +326,22 @@ namespace Acts {
      -------------------------------------*/
     
     dim3 TS_GridSize(nSpB,1,1);
-    dim3 TS_BlockSize(nSpT,1,1);
-    //CUDA::Buffer<float> maxScatteringAngle2_cuda(1, &m_config.maxScatteringAngle2,1);
-    //CUDA::Buffer<float> sigmaScattering_cuda(1, &m_config.sigmaScattering,1);
-    //CUDA::Buffer<float> minHelixDiameter2_cuda(1, &m_config.minHelixDiameter2,1);
-    //CUDA::Buffer<float> pT2perRadius_cuda(1, &m_config.pT2perRadius,1);
-    //CUDA::Buffer<float> impactMax_cuda(1, &m_config.impactMax,1);
+    dim3 TS_BlockSize;
+    CUDA::Buffer<int>   offset_cuda(1, &offset, 1);
+    CUDA::Buffer<float> maxScatteringAngle2_cuda(1, &m_config.maxScatteringAngle2,1);
+    CUDA::Buffer<float> sigmaScattering_cuda(1, &m_config.sigmaScattering,1);
+    CUDA::Buffer<float> minHelixDiameter2_cuda(1, &m_config.minHelixDiameter2,1);
+    CUDA::Buffer<float> pT2perRadius_cuda(1, &m_config.pT2perRadius,1);
+    CUDA::Buffer<float> impactMax_cuda(1, &m_config.impactMax,1);
+    int nTopPassLimit = 10;    
+    CUDA::Buffer<int>   nTopPassLimit_cuda(1, &nTopPassLimit, 1);
+
+    std::vector<int> nTopPass_vec(nSpB,0); // Zero initialization;
+    CUDA::Buffer<int>   nTopPass_cuda(nSpB, &nTopPass_vec[0], nSpB);// output
+    CUDA::Matrix<int>   topIndex_cuda(nTopPassLimit, nSpB);         // output
+    CUDA::Matrix<float> curvatures_cuda(nTopPassLimit, nSpB);       // output
+    CUDA::Matrix<float> impactparameters_cuda(nTopPassLimit, nSpB); // output
+						  
     //auto sf_config = (m_config.seedFilter).m_cfg;    
     //CUDA::Buffer<float> deltaInvHelixDiameter_cuda(1, &sf_config.deltaInvHelixDiameter,1);
     //CUDA::Buffer<float> impactWeightFactor_cuda(1, &sf_config.impactWeightFactor,1);
@@ -345,29 +349,60 @@ namespace Acts {
     //CUDA::Buffer<float> compatSeedWeight_cuda(1, &sf_config.compatSeedWeight,1);
     //CUDA::Buffer<size_t> compatSeedLimit_cuda(1, &sf_config.compatSeedLimit,1);    
 
-    /*
-    SeedfinderCUDAKernels::searchTriplet(TS_GridSize, TS_BlockSize,
-					 spM_cuda.Get(),
-					 nSpB_cuda.Get(), spBcompMat_cuda.GetEl(0,0),
-					 nSpT_cuda.Get(), spTcompMat_cuda.GetEl(0,0),
-					 circBcompMat_cuda.GetEl(0,0),
-					 circTcompMat_cuda.GetEl(0,0),
-					 config_cuda.Get()
-					 // seed finder config
-					 //maxScatteringAngle2_cuda.Get(),
-					 //sigmaScattering_cuda.Get(),
-					 //minHelixDiameter2_cuda.Get(),
-					 //pT2perRadius_cuda.Get(),
-					 //impactMax_cuda.Get(),
-					 // seed filter config
-					 //deltaInvHelixDiameter_cuda.Get(),
-					 //impactWeightFactor_cuda.Get(),
-					 //sf_deltaRMin_cuda.Get(),
-					 //compatSeedWeight_cuda.Get(),
-					 //compatSeedLimit_cuda.Get(),
-					 );
+    offset = 0;
+    while(offset<nSpT){
+      offset_cuda.CopyH2D(&offset,1);
+      //std::cout << offset << "  " << nSpT << std::endl;
+      BlockSize    = fmin(nSpT, MAX_BLOCK_SIZE);
+      BlockSize    = fmin(BlockSize,nSpT-offset);
+      TS_BlockSize = dim3(BlockSize,1,1);
+      
+      SeedfinderCUDAKernels::searchTriplet(TS_GridSize, TS_BlockSize,
+					   offset_cuda.Get(),
+					   spM_cuda.Get(),
+					   nSpB_cuda.Get(), spBcompMat_cuda.GetEl(0,0),
+					   nSpT_cuda.Get(), spTcompMat_cuda.GetEl(offset,0),
+					   circBcompMat_cuda.GetEl(0,0),
+					   circTcompMat_cuda.GetEl(offset,0),
+					   //config_cuda.Get()
+					   // seed finder config
+					   maxScatteringAngle2_cuda.Get(),
+					   sigmaScattering_cuda.Get(),
+					   minHelixDiameter2_cuda.Get(),
+					   pT2perRadius_cuda.Get(),
+					   impactMax_cuda.Get(),
+					   nTopPassLimit_cuda.Get(),
+					   // output
+					   nTopPass_cuda.Get(),
+					   topIndex_cuda.GetEl(0,0),
+					   curvatures_cuda.GetEl(0,0),
+					   impactparameters_cuda.GetEl(0,0)
+					   // seed filter config
+					   //deltaInvHelixDiameter_cuda.Get(),
+					   //impactWeightFactor_cuda.Get(),
+					   //sf_deltaRMin_cuda.Get(),
+					   //compatSeedWeight_cuda.Get(),
+					   //compatSeedLimit_cuda.Get(),
+					   );
+      offset += BlockSize;
+    }
+
+    CPU::Buffer<int>   nTopPass_cpu(nSpB, &nTopPass_cuda);                       
+    CPU::Matrix<int>   topIndex_cpu(nTopPassLimit, nSpB, &topIndex_cuda);        
+    CPU::Matrix<float> curvatures_cpu(nTopPassLimit, nSpB, &curvatures_cuda);      
+    CPU::Matrix<float> impactparameters_cpu(nTopPassLimit, nSpB, &impactparameters_cuda); 
+
+    // Convert to space_range_t objects
+
     
+    /*
+    for (int i_b=0; i_b<nSpB; i_b++){
+      if (nTopPass_cpu[i_b] && i_b<5){
+	std::cout << i_b << "  "  << nTopPass_cpu[i_b] << std::endl;
+      }
+    }
     */
+    //std::cout << "hi2" << std::endl;
     /*
     float* Zo        = circBcompMat_cuda.GetHostBuffer(nSpB,0,0);
     float* cot_theta = circBcompMat_cuda.GetHostBuffer(nSpB,0,1);
