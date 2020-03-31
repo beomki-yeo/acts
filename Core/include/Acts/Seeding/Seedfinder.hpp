@@ -74,13 +74,10 @@ class Seedfinder {
   template< typename T=Architecture_t, typename sp_range_t>
   typename std::enable_if< std::is_same<T, Acts::CUDA>::value, std::vector<Seed<external_spacepoint_t> > >::type
   createSeedsForGroup(sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const;
+
+  InternalSpacePoint<external_spacepoint_t> convert2Spacepoint(float* sp_arr) const;
     
  private:
-
-  void transformCoordinates(
-      std::vector<const InternalSpacePoint<external_spacepoint_t>*>& vec,
-      const InternalSpacePoint<external_spacepoint_t>& spM, bool bottom,
-      std::vector<LinCircle>& linCircleVec) const;
 
   Acts::SeedfinderConfig<external_spacepoint_t> m_config;
 };

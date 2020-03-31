@@ -162,9 +162,9 @@ namespace Acts {
     i_t++;    
   }
 
-  /* ------------------------------------
+  /*------------------------------------
      Algorithm 1. Doublet Search (DS)
-  ---------------------------------------*/
+  ------------------------------------*/
   
   int  offset;
   int  BlockSize;
@@ -372,9 +372,34 @@ namespace Acts {
     CPU::Matrix<float> curvatures_cpu(nTopPassLimit, nSpB, &curvatures_cuda);      
     CPU::Matrix<float> impactparameters_cpu(nTopPassLimit, nSpB, &impactparameters_cuda); 
 
-    for (int i_b=0; i_b<nSpB; i_b++){
+    auto spM = convert2Spacepoint(spMmat_cpu.GetRow(i_m));
+    std::vector<InternalSpacePoint<external_spacepoint_t>> topSpVec;
+    std::vector<float> curvatures;
+    std::vector<float> impactParameters;
 
-      // Convert to space_range_t objects
+    
+    for (int i_b=0; i_b<nSpB; i_b++){
+      int gBottomIndex = bIndex[i_b];
+      
+      auto spB = convert2Spacepoint(spBmat_cpu.GetRow(gBottomIndex));
+      topSpVec.clear();
+      curvatures.clear();
+      impactParameters.clear();
+      float Zob = circBcompMat_cpu.GetEl(i_b,0); //// Need to make this matrix?
+      
+      for(int i_t=0; i_t<nTopPass_cpu[i_b]; i_t++){
+	int gTopIndex = tIndex[i_t];
+	
+	topSpVec.push_back(convert2Spacepoint(spMmat_cpu.GetRow(gTopIndex)));
+	curvatures.push_back(curvatures_cpu[i_t]);
+	impactParameters.push_back(impactparameters_cpu[i_t]);
+
+	std::vector<std::pair<
+	  float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
+	  sameTrackSeeds;
+	sameTrackSeeds = std::move(config.seedFilter->filterSeeds_2SpFixed(*compatBottomSP[b], spM, topSpVec, curvatures, impactParameters,Zob));		
+      }
+						  
       /*
       
       std::vector<std::pair<
@@ -389,5 +414,17 @@ namespace Acts {
   
   }
 
+  template< typename external_spacepoint_t, typename architecture_t>
+  InternalSpacePoint<external_spacepoint_t> Seedfinder<external_spacepoint_t, architecture_t>::convert2Spacepoint(float* sp_arr) const{
+    external_spacepoint_t sp;
+    sp.m_x = sp_arr[0];
+    sp.m_y = sp_arr[1];
+    sp.m_z = sp_arr[2];
+    sp.m_r = sp_arr[3];
+    sp.varianceR = sp_arr[4];
+    sp.varianceZ = sp_arr[5];
+    return InternalSpacePoint<external_spacepoint_t>(sp);
+  }
+  
 }// namespace Acts
 
