@@ -20,7 +20,7 @@ class SeedfinderCUDAKernels {
 public: 
   
   static void searchDoublet( dim3 grid, dim3 block,
-			     const int* isBottom, 
+			     const bool* isBottom, 
 			     const float* rMvec, const float* zMvec,
 			     const int* nSpB, const float* rBvec, const float* zBvec, 
 			     //const Acts::CuSeedfinderConfig* config,
@@ -28,11 +28,11 @@ public:
 			     const float* cotThetaMax, 
 			     const float* collisionRegionMin, 
 			     const float* collisionRegionMax,
-			     int* isCompatible 			     
+			     bool* isCompatible 			     
 			     );
 
   static void transformCoordinates( dim3 grid, dim3 block,
-				    const int*   isBottom, 
+				    const bool*  isBottom, 
 				    const float* spM,
 				    const int*   nSpB,
 				    const float* spBmat,

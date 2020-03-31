@@ -7,20 +7,20 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
-__global__ void cuSearchDoublet(const int* isBottom,
+__global__ void cuSearchDoublet(const bool* isBottom,
 				const float* rMvec, const float* zMvec,
 				const int* nSpB, const float* rBvec, const float* zBvec, 
 				//const Acts::CuSeedfinderConfig* config,
 				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax,
-				int* isCompatible				
+				bool* isCompatible				
 				);
 
-__global__ void cuTransformCoordinates(const int* isBottom,
-					const float* spM,
-					const int* nSpB,
-					const float* spBmat,
-					float* circBmat);
+__global__ void cuTransformCoordinates(const bool* isBottom,
+				       const float* spM,
+				       const int* nSpB,
+				       const float* spBmat,
+				       float* circBmat);
 
 __global__ void cuSearchTriplet(const int*   offset,
 				const float* spM,
@@ -44,13 +44,13 @@ namespace Acts{
   
   void SeedfinderCUDAKernels::searchDoublet(
 			        dim3 grid, dim3 block,
-				const int* isBottom,
+				const bool* isBottom,
 				const float* rMvec, const float* zMvec,
 				const int* nSpB, const float* rBvec, const float* zBvec, 
 				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax,
 				//const Acts::CuSeedfinderConfig* config,
-				int* isCompatible  ){
+				bool* isCompatible  ){
     
   cuSearchDoublet<<< grid, block >>>(//offset,
 				     isBottom,
@@ -65,7 +65,7 @@ namespace Acts{
 
   void SeedfinderCUDAKernels::transformCoordinates(
 				   dim3 grid, dim3 block,
-				   const int* isBottom, 
+				   const bool* isBottom, 
 				   const float* spM,
 				   const int*   nSpB,
 				   const float* spBmat,
@@ -117,13 +117,13 @@ namespace Acts{
   
 }
 
-__global__ void cuSearchDoublet(const int* isBottom,
+__global__ void cuSearchDoublet(const bool* isBottom,
 				const float* rMvec, const float* zMvec,
 				const int* nSpB, const float* rBvec, const float* zBvec, 	   
 				//const Acts::CuSeedfinderConfig* config,
 				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax,
-				int* isCompatible 				
+				bool* isCompatible 				
 				){
   
   int globalId = threadIdx.x+(*nSpB)*blockIdx.x;
@@ -188,7 +188,7 @@ __global__ void cuSearchDoublet(const int* isBottom,
 }
 
 
-__global__ void cuTransformCoordinates(const int* isBottom,
+__global__ void cuTransformCoordinates(const bool* isBottom,
 				       const float* spM,
 				       const int* nSpB,
 				       const float* spBmat,
@@ -375,8 +375,6 @@ __global__ void cuSearchTriplet(const int*   offset,
   // function
   // (in contrast to having to solve a quadratic function in x/y plane)
 
-  //impactparameters[threadId] = fabs((A - B * rM) * rM);
-  //curvatures[threadId] = B / sqrt(S2);
   float impact   = fabs((A - B * rM) * rM);
   float invHelix = B / sqrt(S2);
   
@@ -389,7 +387,7 @@ __global__ void cuSearchTriplet(const int*   offset,
   if (isPassed[threadId] == true){
     int pos = atomicAdd(&nTopPass[blockId],1);
     if (pos<*nTopPassLimit){
-      //printf("%d %d %d\n", blockId, pos, nTopPass[blockId]);
+      //printf("%d %d\n", blockId, nTopPass[blockId]);
       tIndex[pos]           = threadIdx.x + (*offset);
       impactparameters[pos] = impact;
       curvatures[pos]       = invHelix;
@@ -411,7 +409,6 @@ __global__ void cuSearchTriplet(const int*   offset,
     printf("%f %f \n", iSinTheta2, scatteringInRegion2);
   }
   */
-
   
   /*
   if (threadId == 0 ){

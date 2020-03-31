@@ -31,13 +31,14 @@ SeedFilter<external_spacepoint_t>::filterSeeds_2SpFixed(
   std::vector<std::pair<
       float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
       selectedSeeds;
-
+  
   for (size_t i = 0; i < topSpVec.size(); i++) {
     // if two compatible seeds with high distance in r are found, compatible
     // seeds span 5 layers
     // -> very good seed
+    
     std::vector<float> compatibleSeedR;
-
+    
     float invHelixDiameter = invHelixDiameterVec[i];
     float lowerLimitCurv = invHelixDiameter - m_cfg.deltaInvHelixDiameter;
     float upperLimitCurv = invHelixDiameter + m_cfg.deltaInvHelixDiameter;
@@ -45,6 +46,7 @@ SeedFilter<external_spacepoint_t>::filterSeeds_2SpFixed(
     float impact = impactParametersVec[i];
 
     float weight = -(impact * m_cfg.impactWeightFactor);
+
     for (size_t j = 0; j < topSpVec.size(); j++) {
       if (i == j) {
         continue;
@@ -83,6 +85,7 @@ SeedFilter<external_spacepoint_t>::filterSeeds_2SpFixed(
         break;
       }
     }
+    
     if (m_experimentCuts != nullptr) {
       // add detector specific considerations on the seed weight
       weight += m_experimentCuts->seedWeight(bottomSP, middleSP, *topSpVec[i]);
@@ -92,10 +95,23 @@ SeedFilter<external_spacepoint_t>::filterSeeds_2SpFixed(
         continue;
       }
     }
+
+    const InternalSeed<external_spacepoint_t>a_seed(bottomSP, middleSP, *topSpVec[i], zOrigin);
+        
+    /*
+    std::pair<float,std::unique_ptr<const InternalSeed<external_spacepoint_t>>> a_pair(weight, std::move(a_ptr));
+    selectedSeeds.push_back(std::move(a_pair));
+    */
+    /*
+      selectedSeeds.push_back(std::make_pair(weight, std::move(a_ptr)));    
+    */
+    /*
     selectedSeeds.push_back(std::make_pair(
         weight, std::make_unique<const InternalSeed<external_spacepoint_t>>(
-                    bottomSP, middleSP, *topSpVec[i], zOrigin)));
+                    bottomSP, middleSP, *topSpVec[i], zOrigin)));    
+    */
   }
+  
   return selectedSeeds;
 }
 

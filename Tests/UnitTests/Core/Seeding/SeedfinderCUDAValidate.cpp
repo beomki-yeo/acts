@@ -209,12 +209,19 @@ int main(int argc, char** argv) {
   std::cout << "Number of regions: " << seedVector_cpu.size() << std::endl;
 
   cudaProfilerStop();
-  /*
-  int numSeeds = 0;
+ 
+  int nSeed_cpu = 0;
   for (auto& outVec : seedVector_cpu) {
-    numSeeds += outVec.size();
+    nSeed_cpu += outVec.size();
   }
-  std::cout << "Number of seeds generated: " << numSeeds << std::endl;
+
+  int nSeed_cuda = 0;
+  for (auto& outVec : seedVector_cuda) {
+    nSeed_cuda += outVec.size();
+  }
+  
+  std::cout << "Number of Seeds (CPU | CUDA): " << nSeed_cpu << " | " << nSeed_cuda << std::endl;
+  /*
   if (!quiet) {
     for (auto& regionVec : seedVector_cpu) {
       for (size_t i = 0; i < regionVec.size(); i++) {

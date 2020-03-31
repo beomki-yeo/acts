@@ -2,8 +2,7 @@
 // Developer Note (Beomki Yeo):
 // Including PlatformDef.h makes an error...
 
-#include "Acts/Utilities/Platforms/CUDA/CUDABuffer.cu"
-#include "Acts/Utilities/Platforms/CUDA/Kernels.cu"
+#include "Acts/Utilities/Platforms/CUDA/CUDAArray.cu"
 #include "Acts/Utilities/Platforms/CUDA/CuUtils.cu"
 #include "Acts/Utilities/Definitions.hpp"
 #include <assert.h>
@@ -64,18 +63,18 @@ BOOST_AUTO_TEST_CASE( CUDAOBJ_TEST ){
   gridSize  = dim3(1,1,1);
   blockSize = dim3(nVec,1,1);
   bufSize   = gridSize.x * blockSize.x;
-  CPUBuffer<Eigen::Matrix<AFloat, vecDim, 1>>  iMat_MMA_cpu(bufSize);
+  CPUArray<Eigen::Matrix<AFloat, vecDim, 1>>  iMat_MMA_cpu(bufSize);
   for (int i=0; i< bufSize; i++){
     iMat_MMA_cpu[i] = Eigen::Matrix<AFloat,vecDim,1>::Random();
   }
 
-  CUDABuffer<Eigen::Matrix<AFloat, vecDim, 1>> iMat_MMA_cuda(bufSize, iMat_MMA_cpu.Get(), bufSize, 0);
-  CUDABuffer<Eigen::Matrix<AFloat, vecDim, 1>> oMat_MMA_cuda(bufSize);
+  CUDAArray<Eigen::Matrix<AFloat, vecDim, 1>> iMat_MMA_cuda(bufSize, iMat_MMA_cpu.Get(), bufSize, 0);
+  CUDAArray<Eigen::Matrix<AFloat, vecDim, 1>> oMat_MMA_cuda(bufSize);
  
   MatrixLoadStore_MMA<AFloat, vecDim, 1><<< gridSize, blockSize >>>(iMat_MMA_cuda.Get(),oMat_MMA_cuda.Get());
   gpuErrChk ( cudaGetLastError() );
     
-  CPUBuffer<Eigen::Matrix<AFloat, vecDim, 1>> oMat_MMA_cpu = *(oMat_MMA_cuda.GetCPUBuffer(bufSize));
+  CPUArray<Eigen::Matrix<AFloat, vecDim, 1>> oMat_MMA_cpu = *(oMat_MMA_cuda.GetCPUArray(bufSize));
 
   // For aligned memory access (AMA)
   // For aligned memory access (AMA)
@@ -84,19 +83,19 @@ BOOST_AUTO_TEST_CASE( CUDAOBJ_TEST ){
   blockSize = dim3(vecDim,1,1);
   bufSize   = gridSize.x * blockSize.x;
 
-  CPUBuffer<Eigen::Matrix<AFloat, vecDim, nVec>>  iMat_AMA_cpu(bufSize);
+  CPUArray<Eigen::Matrix<AFloat, vecDim, nVec>>  iMat_AMA_cpu(bufSize);
   for (int i=0; i< bufSize; i++){
     iMat_AMA_cpu[i] = Eigen::Matrix<AFloat,vecDim,nVec>::Random();
   }
 
-  CUDABuffer<Eigen::Matrix<AFloat,vecDim,nVec>> iMat_AMA_cuda(bufSize, iMat_AMA_cpu.Get(), bufSize, 0);
-  CUDABuffer<Eigen::Matrix<AFloat,vecDim,nVec>> oMat_AMA_cuda(bufSize);
+  CUDAArray<Eigen::Matrix<AFloat,vecDim,nVec>> iMat_AMA_cuda(bufSize, iMat_AMA_cpu.Get(), bufSize, 0);
+  CUDAArray<Eigen::Matrix<AFloat,vecDim,nVec>> oMat_AMA_cuda(bufSize);
 
   MatrixLoadStore_AMA<AFloat, vecDim, nVec><<< gridSize, blockSize >>>(iMat_AMA_cuda.Get(),oMat_AMA_cuda.Get());
 
   gpuErrChk ( cudaGetLastError() );
     
-  CPUBuffer<Eigen::Matrix<AFloat,vecDim,nVec>> oMat_AMA_cpu = *(oMat_AMA_cuda.GetCPUBuffer(bufSize));
+  CPUArray<Eigen::Matrix<AFloat,vecDim,nVec>> oMat_AMA_cpu = *(oMat_AMA_cuda.GetCPUArray(bufSize));
   
   cudaProfilerStop();
 

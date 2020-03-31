@@ -35,13 +35,13 @@ struct LinCircle {
   float U;
   float V;
 };
-  template <typename external_spacepoint_t, typename architecture_t>
+  template <typename external_spacepoint_t, typename platform_t>
 class Seedfinder {
   ///////////////////////////////////////////////////////////////////
   // Public methods:
   ///////////////////////////////////////////////////////////////////
 
- using Architecture_t = architecture_t;
+ using Platform_t = platform_t;
     
  public:
   /// The only constructor. Requires a config object.
@@ -53,9 +53,9 @@ class Seedfinder {
   /**    @name Disallow default instantiation, copy, assignment */
   //@{
   Seedfinder() = delete;
-    Seedfinder(const Seedfinder<external_spacepoint_t, architecture_t>&) = delete;
-    Seedfinder<external_spacepoint_t, architecture_t >& operator=(
-  const Seedfinder<external_spacepoint_t, architecture_t>&) = delete;
+    Seedfinder(const Seedfinder<external_spacepoint_t, platform_t>&) = delete;
+    Seedfinder<external_spacepoint_t, platform_t >& operator=(
+  const Seedfinder<external_spacepoint_t, platform_t>&) = delete;
   //@}
 
   /// Create all seeds from the space points in the three iterators.
@@ -67,15 +67,13 @@ class Seedfinder {
   /// Ranges must be separate objects for each parallel call.
   /// @return vector in which all found seeds for this group are stored.
 //template< typename sp_range_t >
-  template< typename T=Architecture_t, typename sp_range_t>
+  template< typename T=Platform_t, typename sp_range_t>
   typename std::enable_if< std::is_same<T, Acts::CPU>::value, std::vector<Seed<external_spacepoint_t> > >::type
   createSeedsForGroup(sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const;
 
-  template< typename T=Architecture_t, typename sp_range_t>
+  template< typename T=Platform_t, typename sp_range_t>
   typename std::enable_if< std::is_same<T, Acts::CUDA>::value, std::vector<Seed<external_spacepoint_t> > >::type
   createSeedsForGroup(sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const;
-
-  InternalSpacePoint<external_spacepoint_t> convert2Spacepoint(float* sp_arr) const;
     
  private:
 
