@@ -96,8 +96,8 @@ SeedFilter<external_spacepoint_t>::filterSeeds_2SpFixed(
       }
     }
 
-    const InternalSeed<external_spacepoint_t>a_seed(bottomSP, middleSP, *topSpVec[i], zOrigin);
-        
+    //const InternalSeed<external_spacepoint_t>a_seed(bottomSP, middleSP, *topSpVec[i], zOrigin);
+    
     /*
     std::pair<float,std::unique_ptr<const InternalSeed<external_spacepoint_t>>> a_pair(weight, std::move(a_ptr));
     selectedSeeds.push_back(std::move(a_pair));
@@ -105,11 +105,11 @@ SeedFilter<external_spacepoint_t>::filterSeeds_2SpFixed(
     /*
       selectedSeeds.push_back(std::make_pair(weight, std::move(a_ptr)));    
     */
-    /*
+    
     selectedSeeds.push_back(std::make_pair(
-        weight, std::make_unique<const InternalSeed<external_spacepoint_t>>(
+         weight, std::make_unique<const InternalSeed<external_spacepoint_t>>(
                     bottomSP, middleSP, *topSpVec[i], zOrigin)));    
-    */
+    
   }
   
   return selectedSeeds;
