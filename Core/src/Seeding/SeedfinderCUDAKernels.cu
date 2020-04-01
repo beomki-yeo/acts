@@ -136,11 +136,11 @@ __global__ void cuSearchDoublet(const bool* isBottom,
   isCompatible[globalId] = true;
   
   // Doublet search for bottom hits
-  
+  /*
   if (*isBottom == true){
-
+    
     float deltaR = rM - rB;
-
+    
     if (deltaR > *deltaRMax){
       isCompatible[globalId] = false;
     }
@@ -148,7 +148,7 @@ __global__ void cuSearchDoublet(const bool* isBottom,
     if (deltaR < *deltaRMin){
       isCompatible[globalId] = false;
     }
-
+    
     float cotTheta = (zM - zB)/deltaR;
     if (fabs(cotTheta) > *cotThetaMax){
       isCompatible[globalId] = false;
@@ -157,7 +157,7 @@ __global__ void cuSearchDoublet(const bool* isBottom,
     float zOrigin = zM - rM*cotTheta;
     if (zOrigin < *collisionRegionMin || zOrigin > *collisionRegionMax){
       isCompatible[globalId] = false;
-    }
+    }    
   }
 
   // Doublet search for top hits
@@ -185,6 +185,7 @@ __global__ void cuSearchDoublet(const bool* isBottom,
       }
     }
   }
+  */
 }
 
 
@@ -208,7 +209,7 @@ __global__ void cuTransformCoordinates(const bool* isBottom,
   float xB = spBmat[globalId+(*nSpB)*0];
   float yB = spBmat[globalId+(*nSpB)*1];
   float zB = spBmat[globalId+(*nSpB)*2];
-  float rB = spBmat[globalId+(*nSpB)*3];
+  //float rB = spBmat[globalId+(*nSpB)*3];
   float varianceRB = spBmat[globalId+(*nSpB)*4];
   float varianceZB = spBmat[globalId+(*nSpB)*5];
   
@@ -279,20 +280,20 @@ __global__ void cuSearchTriplet(const int*   offset,
   //rT[threadIdx.x] = spTmat[threadId+(*nSpT)*3];
   
   float rM = spM[3];
-  float zM = spM[2];
+  //float zM = spM[2];
   float varianceRM = spM[4];
   float varianceZM = spM[5];
 
-  float spB[6];
-  spB[0] = spBmat[blockId+(*nSpB)*0];
-  spB[1] = spBmat[blockId+(*nSpB)*1];
-  spB[2] = spBmat[blockId+(*nSpB)*2];
-  spB[3] = spBmat[blockId+(*nSpB)*3];
-  spB[4] = spBmat[blockId+(*nSpB)*4];
-  spB[5] = spBmat[blockId+(*nSpB)*5];
+  //float spB[6];
+  //spB[0] = spBmat[blockId+(*nSpB)*0];
+  //spB[1] = spBmat[blockId+(*nSpB)*1];
+  //spB[2] = spBmat[blockId+(*nSpB)*2];
+  //spB[3] = spBmat[blockId+(*nSpB)*3];
+  //spB[4] = spBmat[blockId+(*nSpB)*4];
+  //spB[5] = spBmat[blockId+(*nSpB)*5];
 
   // Zob values from CPU and CUDA are slightly different
-  float Zob        = circBmat[blockId+(*nSpB)*0];
+  //float Zob        = circBmat[blockId+(*nSpB)*0];
   float cotThetaB  = circBmat[blockId+(*nSpB)*1];
   float iDeltaRB   = circBmat[blockId+(*nSpB)*2];
   float ErB        = circBmat[blockId+(*nSpB)*3];
@@ -302,7 +303,7 @@ __global__ void cuSearchTriplet(const int*   offset,
   float scatteringInRegion2 = (*maxScatteringAngle2) * iSinTheta2;
   scatteringInRegion2 *= (*sigmaScattering) * (*sigmaScattering);
 
-  float Zot        = circTmat[threadId+(*nSpT)*0];
+  //float Zot        = circTmat[threadId+(*nSpT)*0];
   float cotThetaT  = circTmat[threadId+(*nSpT)*1];
   float iDeltaRT   = circTmat[threadId+(*nSpT)*2];
   float ErT        = circTmat[threadId+(*nSpT)*3];

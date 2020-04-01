@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
                                                  bottomBinFinder, topBinFinder,
                                                  std::move(grid), config);
 
-  int nGroupToIterate = 2;
+  int nGroupToIterate = 500;
   int group_count;
   ///////// CPU
   group_count=0;

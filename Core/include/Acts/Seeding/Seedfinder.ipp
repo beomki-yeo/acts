@@ -427,7 +427,6 @@ namespace Acts {
 			 std::make_move_iterator(sameTrackSeeds.begin()),
 			 std::make_move_iterator(sameTrackSeeds.end()));	
       
-      
     }
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
   }

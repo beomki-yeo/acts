@@ -17,6 +17,7 @@ set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_FLAGS -arch=sm_61)
 
+
 # build options
 
 # all options must be defined here to keep the list directly visible and
