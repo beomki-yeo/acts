@@ -4,7 +4,7 @@
 #include <memory>
 #include "cuda.h"
 #include "cuda_runtime.h"
-#include "Acts/Utilities/Platforms/CUDA/CPUArray.hxx"
+#include "Acts/Utilities/Platforms/CUDA/CPUArray.hpp"
 
 namespace Acts{
 

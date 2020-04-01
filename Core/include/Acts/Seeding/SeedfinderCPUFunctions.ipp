@@ -276,11 +276,13 @@ namespace Acts{
       }
       
       if (!topSpVec.empty()) {
+
 	/*
 	if (b<5){
 	  std::cout << b << "  " << topSpVec.size() << std::endl;
 	}
-	*/
+	*/	
+
         std::vector<std::pair<
             float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
             sameTrackSeeds;
@@ -289,9 +291,9 @@ namespace Acts{
         seedsPerSpM.insert(seedsPerSpM.end(),
                            std::make_move_iterator(sameTrackSeeds.begin()),
                            std::make_move_iterator(sameTrackSeeds.end()));
+	//std::cout << "b: " << b << "  SeedsPerSpM: " << seedsPerSpM.size() << std::endl;
       }
     }
-
     return seedsPerSpM;
   }  
 }

@@ -132,19 +132,17 @@ __global__ void cuSearchDoublet(const bool* isBottom,
   float zB = zBvec[threadIdx.x];
   float rM = rMvec[blockIdx.x];
   float zM = zMvec[blockIdx.x];  
-  
+    
+  // Doublet search for bottom hits
   isCompatible[globalId] = true;
   
-  // Doublet search for bottom hits
-  /*
-  if (*isBottom == true){
-    
+  if (*isBottom == true){    
     float deltaR = rM - rB;
-    
+    //printf("%d %d \n", globalId, *nSpB);
     if (deltaR > *deltaRMax){
       isCompatible[globalId] = false;
     }
-
+        
     if (deltaR < *deltaRMin){
       isCompatible[globalId] = false;
     }
@@ -159,12 +157,11 @@ __global__ void cuSearchDoublet(const bool* isBottom,
       isCompatible[globalId] = false;
     }    
   }
-
+  
   // Doublet search for top hits
-  else if (*isBottom == false){
-
+  else if (*isBottom == false){    
     float deltaR = rB - rM;
-
+    //printf("%d %d \n", globalId, *nSpB);
     if (deltaR < *deltaRMin){
       isCompatible[globalId] = false;
     }
@@ -172,7 +169,7 @@ __global__ void cuSearchDoublet(const bool* isBottom,
     if (deltaR > *deltaRMax){
       isCompatible[globalId] = false;
     }
-
+    
     if (isCompatible[globalId] == true){
       float cotTheta = (zB - zM)/deltaR;
       if (fabs(cotTheta) > *cotThetaMax){
@@ -183,9 +180,9 @@ __global__ void cuSearchDoublet(const bool* isBottom,
       if (zOrigin < *collisionRegionMin || zOrigin > *collisionRegionMax){
 	isCompatible[globalId] = false;
       }
-    }
+    }    
   }
-  */
+  
 }
 
 
@@ -389,9 +386,9 @@ __global__ void cuSearchTriplet(const int*   offset,
     int pos = atomicAdd(&nTopPass[blockId],1);
     if (pos<*nTopPassLimit){
       //printf("%d %d\n", blockId, nTopPass[blockId]);
-      tIndex[pos]           = threadIdx.x + (*offset);
-      impactparameters[pos] = impact;
-      curvatures[pos]       = invHelix;
+      tIndex          [pos+(*nTopPassLimit)*blockIdx.x] = threadIdx.x + (*offset);
+      impactparameters[pos+(*nTopPassLimit)*blockIdx.x] = impact;
+      curvatures      [pos+(*nTopPassLimit)*blockIdx.x] = invHelix;
       
     }
   }

@@ -1,7 +1,7 @@
 #ifndef CPUMATRIX
 #define CPUMATRIX
 
-#include "Acts/Utilities/Platforms/CUDA/CPUArray.hxx"
+#include "Acts/Utilities/Platforms/CUDA/CPUArray.hpp"
 #include "Acts/Utilities/Platforms/CUDA/CUDAMatrix.cu"
 
 // column-major style Matrix Definition

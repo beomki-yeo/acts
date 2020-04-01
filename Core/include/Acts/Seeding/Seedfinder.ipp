@@ -92,6 +92,7 @@ namespace Acts {
        
     auto seedsPerSpM = SeedfinderCPUFunctions<external_spacepoint_t,sp_range_t>::searchTriplet(*spM, compatBottomSP, compatTopSP, linCircleBottom, linCircleTop, m_config);
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
+    //std::cout << "Final SeedsPerSpM: " << seedsPerSpM.size() << std::endl;
    
   }
   
@@ -123,6 +124,8 @@ namespace Acts {
   for (auto sp: topSPs)    nTop++;
 
   if (nMiddle == 0 || nBottom == 0 || nTop == 0) return outputVec;
+
+  std::cout << "nMiddle: " << nMiddle << "  nBottom: " << nBottom << "  nTop: " << nTop << std::endl;
   
   // Define Matrix and Do flattening
   std::vector< Acts::InternalSpacePoint<external_spacepoint_t> > middleSPvec;
@@ -195,9 +198,17 @@ namespace Acts {
   
   ///// For bottom space points
   isBottom_cpu = true;
-  isBottom_cuda.CopyH2D(&isBottom_cpu,1);	
+  isBottom_cuda.CopyH2D(&isBottom_cpu,1);
+  /*
+  CPUMatrix<bool>  trueBottomMat_cpu(nBottom, nMiddle);
+  for (int i_b=0; i_b<nBottom; i_b++) {
+    for (int i_m=0; i_m<nMiddle; i_m++) {
+      trueBottomMat_cpu.SetEl(i_b,i_m,true);
+    }
+  }  
+  CUDAMatrix<bool> isCompatBottomMat_cuda(nBottom, nMiddle, &trueBottomMat_cpu);
+  */
   CUDAMatrix<bool> isCompatBottomMat_cuda(nBottom, nMiddle);
-  
   offset=0;
   while(offset<nBottom){
     //offset_cuda.CopyH2D(&offset,1);    
@@ -216,12 +227,21 @@ namespace Acts {
     offset+=BlockSize;
   }
   CPUMatrix<bool>  isCompatBottomMat_cpu(nBottom, nMiddle, &isCompatBottomMat_cuda);
-
+  
   ///// For top space points
   isBottom_cpu = false;
-  isBottom_cuda.CopyH2D(&isBottom_cpu,1);	
+  isBottom_cuda.CopyH2D(&isBottom_cpu,1);
+
+  /*
+  CPUMatrix<bool>  trueTopMat_cpu(nTop, nMiddle);
+  for (int i_t=0; i_t<nTop; i_t++) {
+    for (int i_m=0; i_m<nMiddle; i_m++) {
+      trueTopMat_cpu.SetEl(i_t,i_m,true);
+    }
+  }
+  CUDAMatrix<bool> isCompatTopMat_cuda(nTop, nMiddle,  &trueTopMat_cpu);  
+  */
   CUDAMatrix<bool> isCompatTopMat_cuda(nTop, nMiddle);
-  
   offset=0;
   while(offset<nTop){
     //offset_cuda.CopyH2D(&offset,1);    
@@ -241,11 +261,13 @@ namespace Acts {
     offset+= BlockSize;
   }
   CPUMatrix<bool>  isCompatTopMat_cpu(nTop, nMiddle, &isCompatTopMat_cuda);
+
+  std::vector<std::pair<
+    float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>> seedsPerSpM;
   
   for (int i_m=0; i_m<nMiddle; i_m++){
 
-    std::vector<std::pair<
-      float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>> seedsPerSpM;
+    seedsPerSpM.clear();
     
     std::vector< int > bIndex;
     for (int i=0; i<nBottom; i++){
@@ -324,7 +346,7 @@ namespace Acts {
     CUDAArray<float> minHelixDiameter2_cuda(1, &m_config.minHelixDiameter2,1);
     CUDAArray<float> pT2perRadius_cuda(1, &m_config.pT2perRadius,1);
     CUDAArray<float> impactMax_cuda(1, &m_config.impactMax,1);
-    int nTopPassLimit = 10;    
+    const int nTopPassLimit = 10;    
     CUDAArray<int>   nTopPassLimit_cuda(1, &nTopPassLimit, 1);
 
     std::vector<int> nTopPass_vec(nSpB,0); // Zero initialization;
@@ -394,12 +416,13 @@ namespace Acts {
     auto Zob_arr = circBcompMat_cuda.GetCPUArray(nSpB,0,0);
     
     for (int i_b=0; i_b<nSpB; i_b++){
-      if (nTopPass_cpu[i_b]==0) continue;
-      
-      int g_bIndex = bIndex[i_b];      
+      if (nTopPass_cpu[i_b]==0) continue;      
       topSpVec.clear();
       curvatures.clear();
       impactParameters.clear();
+      
+
+      int g_bIndex = bIndex[i_b];      
       float Zob = *(Zob_arr->Get(i_b)); 
       /*
       if (nTopPass_cpu[i_b] && i_b<5){
@@ -410,8 +433,10 @@ namespace Acts {
 	
 	int g_tIndex = tIndex[i_t];
 	topSpVec.push_back(&topSPvec[g_tIndex]);	
-	curvatures.push_back(*curvatures_cpu.GetEl(i_b,i_t));
-	impactParameters.push_back(*impactparameters_cpu.GetEl(i_b,i_t));
+	curvatures.push_back(*curvatures_cpu.GetEl(i_t,i_b));
+	impactParameters.push_back(*impactparameters_cpu.GetEl(i_t,i_b));
+
+	//std::cout << "Curvatures: " << *curvatures_cpu.GetEl(i_t,i_b) <<"  impactParameters: " << *impactparameters_cpu.GetEl(i_t,i_b) << std::endl;
       }
       
       std::vector<std::pair<
@@ -426,9 +451,11 @@ namespace Acts {
       seedsPerSpM.insert(seedsPerSpM.end(),
 			 std::make_move_iterator(sameTrackSeeds.begin()),
 			 std::make_move_iterator(sameTrackSeeds.end()));	
-      
+
+      //std::cout << "b: " << i_b << "  SeedsPerSpM: " << seedsPerSpM.size() << std::endl;
     }
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
+    //std::cout << "Final SeedsPerSpM: " << seedsPerSpM.size() << std::endl;
   }
   
   return outputVec;

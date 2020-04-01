@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Acts/Utilities/Platforms/CUDA/CUDAArray.cu"
-#include "Acts/Utilities/Platforms/CUDA/CPUMatrix.hxx"
+#include "Acts/Utilities/Platforms/CUDA/CPUMatrix.hpp"
 
 namespace Acts{
 

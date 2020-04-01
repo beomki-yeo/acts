@@ -114,6 +114,12 @@ void SeedFilter<external_spacepoint_t>::filterSeeds_1SpFixed(
     std::vector<Seed<external_spacepoint_t>>& outVec) const {
   // sort by weight and iterate only up to configured max number of seeds per
   // middle SP
+  /*
+  for (int i=0; i<seedsPerSpM.size(); i++){
+    std::cout << seedsPerSpM[i].first << std::endl;
+  }
+  */
+  
   std::sort((seedsPerSpM.begin()), (seedsPerSpM.end()),
             [](const std::pair<float, std::unique_ptr<const Acts::InternalSeed<
                                           external_spacepoint_t>>>& i1,
