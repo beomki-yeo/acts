@@ -7,16 +7,16 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
-__global__ void cuSearchDoublet(const bool* isBottom,
+__global__ void cuSearchDoublet(const unsigned char* isBottom,
 				const float* rMvec, const float* zMvec,
 				const int* nSpB, const float* rBvec, const float* zBvec, 
 				//const Acts::CuSeedfinderConfig* config,
 				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax,
-				bool* isCompatible				
+				unsigned char* isCompatible				
 				);
 
-__global__ void cuTransformCoordinates(const bool* isBottom,
+__global__ void cuTransformCoordinates(const unsigned char* isBottom,
 				       const float* spM,
 				       const int* nSpB,
 				       const float* spBmat,
@@ -44,13 +44,13 @@ namespace Acts{
   
   void SeedfinderCUDAKernels::searchDoublet(
 			        dim3 grid, dim3 block,
-				const bool* isBottom,
+				const unsigned char* isBottom,
 				const float* rMvec, const float* zMvec,
 				const int* nSpB, const float* rBvec, const float* zBvec, 
 				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax,
 				//const Acts::CuSeedfinderConfig* config,
-				bool* isCompatible  ){
+				unsigned char* isCompatible  ){
     
   cuSearchDoublet<<< grid, block >>>(//offset,
 				     isBottom,
@@ -65,7 +65,7 @@ namespace Acts{
 
   void SeedfinderCUDAKernels::transformCoordinates(
 				   dim3 grid, dim3 block,
-				   const bool* isBottom, 
+				   const unsigned char* isBottom, 
 				   const float* spM,
 				   const int*   nSpB,
 				   const float* spBmat,
@@ -98,7 +98,7 @@ namespace Acts{
 				//const size_t* compatSeedLimit,
 				){
     
-  cuSearchTriplet<<< grid, block, sizeof(bool)*block.x >>>(
+  cuSearchTriplet<<< grid, block, sizeof(unsigned char)*block.x >>>(
 			       offset,
 			       spM,
 			       nSpB, spBmat,
@@ -117,13 +117,13 @@ namespace Acts{
   
 }
 
-__global__ void cuSearchDoublet(const bool* isBottom,
+__global__ void cuSearchDoublet(const unsigned char* isBottom,
 				const float* rMvec, const float* zMvec,
 				const int* nSpB, const float* rBvec, const float* zBvec, 	   
 				//const Acts::CuSeedfinderConfig* config,
 				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax,
-				bool* isCompatible 				
+				unsigned char* isCompatible 				
 				){
   
   int globalId = threadIdx.x+(*nSpB)*blockIdx.x;
@@ -132,7 +132,7 @@ __global__ void cuSearchDoublet(const bool* isBottom,
   float zB = zBvec[threadIdx.x];
   float rM = rMvec[blockIdx.x];
   float zM = zMvec[blockIdx.x];  
-    
+  
   // Doublet search for bottom hits
   isCompatible[globalId] = true;
   
@@ -186,7 +186,7 @@ __global__ void cuSearchDoublet(const bool* isBottom,
 }
 
 
-__global__ void cuTransformCoordinates(const bool* isBottom,
+__global__ void cuTransformCoordinates(const unsigned char* isBottom,
 				       const float* spM,
 				       const int* nSpB,
 				       const float* spBmat,
@@ -269,7 +269,7 @@ __global__ void cuSearchTriplet(const int*   offset,
 				float* curvatures,
 				float* impactparameters
 				){
-  __shared__ extern bool isPassed[];
+  __shared__ extern unsigned char isPassed[];
   
   int threadId = threadIdx.x;
   int blockId  = blockIdx.x;

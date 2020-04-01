@@ -107,8 +107,8 @@ namespace Acts {
     sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const {
   std::vector<Seed<external_spacepoint_t>> outputVec;
 
-  bool isBottom_cpu;
-  CUDAArray<bool> isBottom_cuda(1);
+  unsigned char isBottom_cpu;
+  CUDAArray<unsigned char> isBottom_cuda(1);
   
   /*----------------------------------
      Algorithm 0. Matrix Flattening 
@@ -200,15 +200,15 @@ namespace Acts {
   isBottom_cpu = true;
   isBottom_cuda.CopyH2D(&isBottom_cpu,1);
   /*
-  CPUMatrix<bool>  trueBottomMat_cpu(nBottom, nMiddle);
+  CPUMatrix<unsigned char>  trueBottomMat_cpu(nBottom, nMiddle);
   for (int i_b=0; i_b<nBottom; i_b++) {
     for (int i_m=0; i_m<nMiddle; i_m++) {
       trueBottomMat_cpu.SetEl(i_b,i_m,true);
     }
   }  
-  CUDAMatrix<bool> isCompatBottomMat_cuda(nBottom, nMiddle, &trueBottomMat_cpu);
+  CUDAMatrix<unsigned char> isCompatBottomMat_cuda(nBottom, nMiddle, &trueBottomMat_cpu);
   */
-  CUDAMatrix<bool> isCompatBottomMat_cuda(nBottom, nMiddle);
+  CUDAMatrix<unsigned char> isCompatBottomMat_cuda(nBottom, nMiddle);
   offset=0;
   while(offset<nBottom){
     //offset_cuda.CopyH2D(&offset,1);    
@@ -226,22 +226,22 @@ namespace Acts {
 					  isCompatBottomMat_cuda.GetEl(offset,0));
     offset+=BlockSize;
   }
-  CPUMatrix<bool>  isCompatBottomMat_cpu(nBottom, nMiddle, &isCompatBottomMat_cuda);
+  CPUMatrix<unsigned char>  isCompatBottomMat_cpu(nBottom, nMiddle, &isCompatBottomMat_cuda);
   
   ///// For top space points
   isBottom_cpu = false;
   isBottom_cuda.CopyH2D(&isBottom_cpu,1);
 
   /*
-  CPUMatrix<bool>  trueTopMat_cpu(nTop, nMiddle);
+  CPUMatrix<unsigned char>  trueTopMat_cpu(nTop, nMiddle);
   for (int i_t=0; i_t<nTop; i_t++) {
     for (int i_m=0; i_m<nMiddle; i_m++) {
       trueTopMat_cpu.SetEl(i_t,i_m,true);
     }
   }
-  CUDAMatrix<bool> isCompatTopMat_cuda(nTop, nMiddle,  &trueTopMat_cpu);  
+  CUDAMatrix<unsigned char> isCompatTopMat_cuda(nTop, nMiddle,  &trueTopMat_cpu);  
   */
-  CUDAMatrix<bool> isCompatTopMat_cuda(nTop, nMiddle);
+  CUDAMatrix<unsigned char> isCompatTopMat_cuda(nTop, nMiddle);
   offset=0;
   while(offset<nTop){
     //offset_cuda.CopyH2D(&offset,1);    
@@ -260,7 +260,7 @@ namespace Acts {
 					  isCompatTopMat_cuda.GetEl(offset,0));
     offset+= BlockSize;
   }
-  CPUMatrix<bool>  isCompatTopMat_cpu(nTop, nMiddle, &isCompatTopMat_cuda);
+  CPUMatrix<unsigned char>  isCompatTopMat_cpu(nTop, nMiddle, &isCompatTopMat_cuda);
 
   std::vector<std::pair<
     float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>> seedsPerSpM;
