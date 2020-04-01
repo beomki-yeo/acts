@@ -72,7 +72,7 @@ std::vector<const SpacePoint*> readFile(std::string filename) {
 
 int main(int argc, char** argv) {
   std::string devName;
-  SetDevice(1,devName);
+  SetDevice(0,devName);
   
   std::string file{"sp.txt"};
   bool help(false);
