@@ -193,6 +193,7 @@ __global__ void cuTransformCoordinates(const unsigned char* isBottom,
 				       float* circBmat){
 
   int globalId = threadIdx.x+blockDim.x*blockIdx.x;
+  if (globalId>=*nSpB) return;
   
   float xM = spM[0];
   float yM = spM[1];

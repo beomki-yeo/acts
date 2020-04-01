@@ -125,7 +125,7 @@ namespace Acts {
 
   if (nMiddle == 0 || nBottom == 0 || nTop == 0) return outputVec;
 
-  std::cout << "nMiddle: " << nMiddle << "  nBottom: " << nBottom << "  nTop: " << nTop << std::endl;
+  //std::cout << "nMiddle: " << nMiddle << "  nBottom: " << nBottom << "  nTop: " << nTop << std::endl;
   
   // Define Matrix and Do flattening
   std::vector< Acts::InternalSpacePoint<external_spacepoint_t> > middleSPvec;
@@ -294,10 +294,11 @@ namespace Acts {
     
     // bottom transform coordinate
     TC_GridSize = dim3(int(nSpB/TC_BlockSize.x)+1,1,1);
+    
     isBottom_cpu = true;
     isBottom_cuda.CopyH2D(&isBottom_cpu,1);	
     
-    CUDAArray<int>   nSpB_cuda(1, &nSpB, 1); 
+    CUDAArray<int>    nSpB_cuda(1, &nSpB, 1); 
     CPUMatrix<float>  spBcompMat_cpu(nSpB,6);
     for (int i=0; i<bIndex.size(); i++){
       int i_b = bIndex[i];
@@ -408,7 +409,6 @@ namespace Acts {
     /* --------------------------------
        Algorithm 4. Seed Filter (SF)
      --------------------------------*/
-
     
     std::vector<const InternalSpacePoint<external_spacepoint_t> *> topSpVec;
     std::vector<float> curvatures;
@@ -451,7 +451,7 @@ namespace Acts {
       seedsPerSpM.insert(seedsPerSpM.end(),
 			 std::make_move_iterator(sameTrackSeeds.begin()),
 			 std::make_move_iterator(sameTrackSeeds.end()));	
-
+      
       //std::cout << "b: " << i_b << "  SeedsPerSpM: " << seedsPerSpM.size() << std::endl;
     }
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);

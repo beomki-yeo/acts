@@ -15,18 +15,18 @@ public:
   
   CUDAArray(size_t size){ 
     fSize = size;
-    cudaMalloc(&fDevPtr, fSize*sizeof(Var_t));
+    cudaMalloc((Var_t**)&fDevPtr, fSize*sizeof(Var_t));
   }
 
   CUDAArray(size_t size, Var_t* buffer, size_t len, size_t offset=0){ 
     fSize = size;
-    cudaMalloc(&fDevPtr, fSize*sizeof(Var_t));
+    cudaMalloc((Var_t**)&fDevPtr, fSize*sizeof(Var_t));
     CopyH2D(buffer, len, offset);
   }
 
   CUDAArray(size_t size, const Var_t* buffer, size_t len, size_t offset=0){ 
     fSize = size;
-    cudaMalloc(&fDevPtr, fSize*sizeof(Var_t));
+    cudaMalloc((Var_t**)&fDevPtr, fSize*sizeof(Var_t));
     CopyH2D(buffer, len, offset);
   }
   
