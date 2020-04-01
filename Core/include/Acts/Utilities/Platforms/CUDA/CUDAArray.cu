@@ -15,18 +15,18 @@ public:
   
   CUDAArray(size_t size){ 
     fSize = size;
-    cudaMalloc((void**)&fDevPtr, fSize*sizeof(Var_t));
+    cudaMalloc(&fDevPtr, fSize*sizeof(Var_t));
   }
 
   CUDAArray(size_t size, Var_t* buffer, size_t len, size_t offset=0){ 
     fSize = size;
-    cudaMalloc((void**)&fDevPtr, fSize*sizeof(Var_t));
+    cudaMalloc(&fDevPtr, fSize*sizeof(Var_t));
     CopyH2D(buffer, len, offset);
   }
 
   CUDAArray(size_t size, const Var_t* buffer, size_t len, size_t offset=0){ 
     fSize = size;
-    cudaMalloc((void**)&fDevPtr, fSize*sizeof(Var_t));
+    cudaMalloc(&fDevPtr, fSize*sizeof(Var_t));
     CopyH2D(buffer, len, offset);
   }
   
@@ -34,7 +34,7 @@ public:
     cudaFree(fDevPtr); 
   }
 
-  Var_t* Get(size_t offset=0) const{ return fDevPtr+offset; }
+  Var_t* Get(size_t offset=0) { return fDevPtr+offset; }
   
   Var_t* GetHostArray(size_t len, size_t offset=0) const {
     Var_t* hostArray = new Var_t[len];
