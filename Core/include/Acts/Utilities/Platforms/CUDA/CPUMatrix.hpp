@@ -71,14 +71,12 @@ public:
   }
 
   void SetColumn(size_t col, Var_t* input){
-    /*
-    for(size_t i_c=0; i_c<fNCols; i_c++){
-      //(*fHostArray)[row+fNRows*i_c]=input[i_c];
-      fHostPtr[row+fNRows*i_c]=input[i_c];
-    }
-    */
     //std::copy(fHostPtr+col*fNRows,fHostPtr+(col+1)*fNRows,input);
     fHostPtr[col*fNRows] = input[0];
+  }
+
+  void CopyD2H(Var_t* devPtr, size_t len, size_t offset=0){
+    cudaMemcpy(fHostPtr, devPtr+offset, len*sizeof(Var_t), cudaMemcpyDeviceToHost);
   }
 
   

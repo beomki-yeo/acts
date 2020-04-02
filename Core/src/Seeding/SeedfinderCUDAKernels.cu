@@ -10,7 +10,6 @@
 __global__ void cuSearchDoublet(const unsigned char* isBottom,
 				const float* rMvec, const float* zMvec,
 				const int* nSpB, const float* rBvec, const float* zBvec, 
-				//const Acts::CuSeedfinderConfig* config,
 				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax,
 				unsigned char* isCompatible				
@@ -34,7 +33,6 @@ __global__ void cuSearchTriplet(const int*   offset,
 				const float* impactMax,
 				const int*   nTopPassLimit,
 				int* nTopPass,
-				int* tIndex,
 				float* curvatures,
 				float* impactparameters				
 				);
@@ -49,7 +47,6 @@ namespace Acts{
 				const int* nSpB, const float* rBvec, const float* zBvec, 
 				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax,
-				//const Acts::CuSeedfinderConfig* config,
 				unsigned char* isCompatible  ){
     
   cuSearchDoublet<<< grid, block >>>(//offset,
@@ -83,19 +80,12 @@ namespace Acts{
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				//const Acts::CuSeedfinderConfig* config
 				// finder config
 				const float* maxScatteringAngle2, const float* sigmaScattering,
 				const float* minHelixDiameter2,   const float* pT2perRadius,
 				const float* impactMax,           const int*   nTopPassLimit,	  
-				int*   nTopPass,   int*   tIndex,
+				int*   nTopPass,
 				float* curvatures, float* impactparameters
-				// filter config
-				//const float* deltaInvHelixDiameter,
-				//const float* impactWeightFactor,
-				//const float* deltaRMin,
-				//const float* compatSeedWeight,
-				//const size_t* compatSeedLimit,
 				){
     
   cuSearchTriplet<<< grid, block, sizeof(unsigned char)*block.x >>>(
@@ -109,7 +99,7 @@ namespace Acts{
 			       minHelixDiameter2, pT2perRadius,
 			       impactMax, nTopPassLimit,
 			       //output
-			       nTopPass, tIndex,
+			       nTopPass,
 			       curvatures, impactparameters
 			       );
   gpuErrChk( cudaGetLastError() );
@@ -120,7 +110,6 @@ namespace Acts{
 __global__ void cuSearchDoublet(const unsigned char* isBottom,
 				const float* rMvec, const float* zMvec,
 				const int* nSpB, const float* rBvec, const float* zBvec, 	   
-				//const Acts::CuSeedfinderConfig* config,
 				const float* deltaRMin,const float*deltaRMax,const float*cotThetaMax, 
 				const float* collisionRegionMin, const float* collisionRegionMax,
 				unsigned char* isCompatible 				
@@ -266,7 +255,7 @@ __global__ void cuSearchTriplet(const int*   offset,
 				const float* impactMax,
 				const int*   nTopPassLimit,
 				int* nTopPass,
-				int* tIndex,
+				//int* tIndex,
 				float* curvatures,
 				float* impactparameters
 				){
@@ -275,20 +264,9 @@ __global__ void cuSearchTriplet(const int*   offset,
   int threadId = threadIdx.x;
   int blockId  = blockIdx.x;
 
-  //rT[threadIdx.x] = spTmat[threadId+(*nSpT)*3];
-  
   float rM = spM[3];
-  //float zM = spM[2];
   float varianceRM = spM[4];
   float varianceZM = spM[5];
-
-  //float spB[6];
-  //spB[0] = spBmat[blockId+(*nSpB)*0];
-  //spB[1] = spBmat[blockId+(*nSpB)*1];
-  //spB[2] = spBmat[blockId+(*nSpB)*2];
-  //spB[3] = spBmat[blockId+(*nSpB)*3];
-  //spB[4] = spBmat[blockId+(*nSpB)*4];
-  //spB[5] = spBmat[blockId+(*nSpB)*5];
 
   // Zob values from CPU and CUDA are slightly different
   //float Zob        = circBmat[blockId+(*nSpB)*0];
@@ -387,9 +365,8 @@ __global__ void cuSearchTriplet(const int*   offset,
     int pos = atomicAdd(&nTopPass[blockId],1);
     if (pos<*nTopPassLimit){
       //printf("%d %d\n", blockId, nTopPass[blockId]);
-      tIndex          [pos+(*nTopPassLimit)*blockIdx.x] = threadIdx.x + (*offset);
-      impactparameters[pos+(*nTopPassLimit)*blockIdx.x] = impact;
-      curvatures      [pos+(*nTopPassLimit)*blockIdx.x] = invHelix;
+      impactparameters[pos+(*nTopPassLimit)*blockId] = impact;
+      curvatures      [pos+(*nTopPassLimit)*blockId] = invHelix;
       
     }
   }
@@ -419,10 +396,5 @@ __global__ void cuSearchTriplet(const int*   offset,
       printf("Pass top seeds: %d \n", passCount);
     }
   }
-  */
-  /*
-  config->seedFilter.filterSeeds_2SpFixed(&threadId, spM, spB, nSpT, spTmat,
-  					  isPassed, curvatures, impactParameters, &Zob,
-  					  weight, isTriplet);
   */
 }

@@ -23,7 +23,6 @@ public:
 			     const unsigned char* isBottom, 
 			     const float* rMvec, const float* zMvec,
 			     const int* nSpB, const float* rBvec, const float* zBvec, 
-			     //const Acts::CuSeedfinderConfig* config,
 			     const float* deltaRMin, const float* deltaRMax,
 			     const float* cotThetaMax, 
 			     const float* collisionRegionMin, 
@@ -48,16 +47,8 @@ public:
 			     const float* maxScatteringAngle2, const float* sigmaScattering,
 			     const float* minHelixDiameter2,   const float* pT2perRadius,
 			     const float* impactMax,           const int*   nTopPassLimit,
-			     int*   nTopPass,   int*   tIndex,
+			     int*   nTopPass,   //int*   tIndex,
 			     float* curvatures, float* impactparameters
-			     //const Acts::CuSeedfinderConfig* config
-			     // finder config			     
-			     // filter config
-			     //const float* deltaInvHelixDiameter,
-			     //const float* impactWeightFactor,
-			     //const float* deltaRMin,
-			     //const float* compatSeedWeight,
-			     //const size_t* compatSeedLimit,
 			     );
   
 private:

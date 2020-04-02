@@ -34,6 +34,8 @@ public:
     cudaFree(fDevPtr); 
   }
 
+  size_t GetSize(){return fSize;}
+  
   Var_t* Get(size_t offset=0) { return fDevPtr+offset; }
   
   Var_t* GetHostArray(size_t len, size_t offset=0) const {

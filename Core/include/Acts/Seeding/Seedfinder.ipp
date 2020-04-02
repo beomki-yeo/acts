@@ -123,8 +123,6 @@ namespace Acts {
   CUDAArray<float> minHelixDiameter2_cuda(1, &m_config.minHelixDiameter2,1);
   CUDAArray<float> pT2perRadius_cuda(1, &m_config.pT2perRadius,1);
   CUDAArray<float> impactMax_cuda(1, &m_config.impactMax,1);
-  const int        nTopPassLimit = 10;    
-  CUDAArray<int>   nTopPassLimit_cuda(1, &nTopPassLimit, 1);
   
   /*----------------------------------
      Algorithm 0. Matrix Flattening 
@@ -272,9 +270,9 @@ namespace Acts {
     nTcompMax_cpu[0] = fmax(tIndex.size(), nTcompMax_cpu[0]);
   }
 
-  CUDAArray<int> nBcompMax_cuda(1,nBcompMax_cpu.Get(),1);
-  CUDAArray<int> nTcompMax_cuda(1,nTcompMax_cpu.Get(),1);
-
+  // For Transform coordinate
+  CUDAArray<int>    nBcompMax_cuda(1,nBcompMax_cpu.Get(),1);
+  CUDAArray<int>    nTcompMax_cuda(1,nTcompMax_cpu.Get(),1);
   CPUMatrix<float>  spBcompMat_cpu(nBcompMax_cpu[0],6);  
   CPUMatrix<float>  spTcompMat_cpu(nTcompMax_cpu[0],6);  
   CUDAMatrix<float> spBcompMat_cuda(nBcompMax_cpu[0],6);   
@@ -282,14 +280,20 @@ namespace Acts {
   CUDAMatrix<float> circBcompMat_cuda(nBcompMax_cpu[0],6); 
   CUDAMatrix<float> circTcompMat_cuda(nTcompMax_cpu[0],6); 
   CUDAArray<float>  spM_cuda(6);
-  /*
-  CPUMatrix<float>  spMtransMat_cpu(6,mCompIndex.size()); // Transposed
-  for (int i_c=0; i_c<mCompIndex.size(); i_c++){
-    auto mIndex = std::get<0>(mCompIndex[i_c]);
-    spMtransMat_cpu.SetColumn(i_c,spMmat_cpu.GetRow(mIndex)); 
-  }
-  CUDAMatrix<float>  spMtransMat_cuda(6,mCompIndex.size(), &spMtransMat_cpu); // Transposed
-  */
+
+  // For Triplet Search
+  CUDAArray<int>    offset_cuda(1);
+  const int         nTopPassLimit = 10;    
+  CUDAArray<int>    nTopPassLimit_cuda(1, &nTopPassLimit, 1);  
+  std::vector<int>  zeros(nBcompMax_cpu[0],0); // Zero initialization;
+  CUDAArray<int>    nTopPass_cuda(nBcompMax_cpu[0]); 
+  CUDAMatrix<float> curvatures_cuda(nTopPassLimit, nBcompMax_cpu[0]);       
+  CUDAMatrix<float> impactparameters_cuda(nTopPassLimit, nBcompMax_cpu[0]); 
+
+  CPUArray<int>     nTopPass_cpu(nBcompMax_cpu[0]);
+  CPUMatrix<float>  curvatures_cpu(nTopPassLimit, nBcompMax_cpu[0]);
+  CPUMatrix<float>  impactparameters_cpu(nTopPassLimit, nBcompMax_cpu[0]);
+  
   for (int i_c=0; i_c<mCompIndex.size(); i_c++){
   
     std::vector<std::pair<
@@ -318,7 +322,6 @@ namespace Acts {
       int i_b = bIndex[i];
       spBcompMat_cpu.SetRow(i,spBmat_cpu.GetRow(i_b));
     }
-    //spBcompMat_cuda.CopyH2D(spBcompMat_cpu.GetEl(), nBcomp_cpu[i_c]*6);
     spBcompMat_cuda.CopyH2D(spBcompMat_cpu.GetEl(), bIndex.size()*6);
     
     SeedfinderCUDAKernels::transformCoordinates(TC_GridSize, TC_BlockSize,
@@ -335,7 +338,6 @@ namespace Acts {
       int i_t = tIndex[i];
       spTcompMat_cpu.SetRow(i,spTmat_cpu.GetRow(i_t));
     }
-    //spTcompMat_cuda.CopyH2D(spTcompMat_cpu.GetEl(), nTcomp_cpu[i_c]*6);
     spTcompMat_cuda.CopyH2D(spTcompMat_cpu.GetEl(), tIndex.size()*6);
     SeedfinderCUDAKernels::transformCoordinates(TC_GridSize, TC_BlockSize,
 						top_cuda.Get(),
@@ -351,13 +353,8 @@ namespace Acts {
     
     dim3 TS_GridSize(nSpB,1,1);
     dim3 TS_BlockSize;
-    CUDAArray<int>    offset_cuda(1, &offset, 1);
-    std::vector<int>  nTopPass_vec(nSpB,0); // Zero initialization;
-    CUDAArray<int>    nTopPass_cuda(nSpB, &nTopPass_vec[0], nSpB);// output
-    CUDAMatrix<int>   topIndex_cuda(nTopPassLimit, nSpB);         // output
-    CUDAMatrix<float> curvatures_cuda(nTopPassLimit, nSpB);       // output
-    CUDAMatrix<float> impactparameters_cuda(nTopPassLimit, nSpB); // output
-						  
+    nTopPass_cuda.CopyH2D(&zeros[0], nTopPass_cuda.GetSize());
+    
     offset = 0;
     while(offset<nSpT){
       offset_cuda.CopyH2D(&offset,1);
@@ -385,17 +382,15 @@ namespace Acts {
 					   nTopPassLimit_cuda.Get(),
 					   // output
 					   nTopPass_cuda.Get(),
-					   topIndex_cuda.GetEl(0,0),
 					   curvatures_cuda.GetEl(0,0),
 					   impactparameters_cuda.GetEl(0,0)
 					   );
       offset += BlockSize;
     }
 
-    CPUArray<int>    nTopPass_cpu(nSpB, &nTopPass_cuda);                       
-    CPUMatrix<int>   topIndex_cpu(nTopPassLimit, nSpB, &topIndex_cuda);        
-    CPUMatrix<float> curvatures_cpu(nTopPassLimit, nSpB, &curvatures_cuda);      
-    CPUMatrix<float> impactparameters_cpu(nTopPassLimit, nSpB, &impactparameters_cuda); 
+    nTopPass_cpu.CopyD2H(nTopPass_cuda.Get(), nBcompMax_cpu[0]);
+    curvatures_cpu.CopyD2H(curvatures_cuda.GetEl(0,0),             nTopPassLimit*nBcompMax_cpu[0]);
+    impactparameters_cpu.CopyD2H(impactparameters_cuda.GetEl(0,0), nTopPassLimit*nBcompMax_cpu[0]);
 
     /* --------------------------------
        Algorithm 4. Seed Filter (SF)
@@ -412,11 +407,10 @@ namespace Acts {
       curvatures.clear();
       impactParameters.clear();
       
-
       int g_bIndex = bIndex[i_b];      
       float Zob = *(Zob_arr->Get(i_b)); 
       /*
-      if (nTopPass_cpu[i_b] && i_b<5){
+      if (nTopPass_cpu[i_b] && i_b<1){
 	std::cout << i_b << "  " << nTopPass_cpu[i_b] << std::endl;
       }
       */

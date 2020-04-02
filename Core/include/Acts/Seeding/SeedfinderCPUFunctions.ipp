@@ -278,10 +278,10 @@ namespace Acts{
       if (!topSpVec.empty()) {
 
 	/*
-	if (b<5){
+	if (b<1){
 	  std::cout << b << "  " << topSpVec.size() << std::endl;
 	}
-	*/	
+	*/
 
         std::vector<std::pair<
             float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
