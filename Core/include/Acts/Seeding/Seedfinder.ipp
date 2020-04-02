@@ -149,43 +149,43 @@ namespace Acts {
   CPUMatrix<float> spMmat_cpu(nMiddle, 6); // x y z r varR varZ
   CPUMatrix<float> spBmat_cpu(nBottom, 6);
   CPUMatrix<float> spTmat_cpu(nTop   , 6);
-    
-  size_t i_m=0;
+  
+  size_t mIdx=0;
   for (auto sp: middleSPs){
-    spMmat_cpu.SetEl(i_m,0,sp->x());
-    spMmat_cpu.SetEl(i_m,1,sp->y());
-    spMmat_cpu.SetEl(i_m,2,sp->z());
-    spMmat_cpu.SetEl(i_m,3,sp->radius());
-    spMmat_cpu.SetEl(i_m,4,sp->varianceR());
-    spMmat_cpu.SetEl(i_m,5,sp->varianceZ());
+    spMmat_cpu.SetEl(mIdx,0,sp->x());
+    spMmat_cpu.SetEl(mIdx,1,sp->y());
+    spMmat_cpu.SetEl(mIdx,2,sp->z());
+    spMmat_cpu.SetEl(mIdx,3,sp->radius());
+    spMmat_cpu.SetEl(mIdx,4,sp->varianceR());
+    spMmat_cpu.SetEl(mIdx,5,sp->varianceZ());
     middleSPvec.push_back(sp);
-    i_m++;
+    mIdx++;
   }
   CUDAMatrix<float> spMmat_cuda(nMiddle, 6, &spMmat_cpu);
   CUDAArray<int>    nSpM_cuda(1,&nMiddle,1);
   
-  size_t i_b=0;
+  size_t bIdx=0;
   for (auto sp: bottomSPs){
-    spBmat_cpu.SetEl(i_b,0,sp->x());
-    spBmat_cpu.SetEl(i_b,1,sp->y());
-    spBmat_cpu.SetEl(i_b,2,sp->z());
-    spBmat_cpu.SetEl(i_b,3,sp->radius());
-    spBmat_cpu.SetEl(i_b,4,sp->varianceR());
-    spBmat_cpu.SetEl(i_b,5,sp->varianceZ());
+    spBmat_cpu.SetEl(bIdx,0,sp->x());
+    spBmat_cpu.SetEl(bIdx,1,sp->y());
+    spBmat_cpu.SetEl(bIdx,2,sp->z());
+    spBmat_cpu.SetEl(bIdx,3,sp->radius());
+    spBmat_cpu.SetEl(bIdx,4,sp->varianceR());
+    spBmat_cpu.SetEl(bIdx,5,sp->varianceZ());
     bottomSPvec.push_back(sp);
-    i_b++;
+    bIdx++;
   }
 
-  size_t i_t=0;
+  size_t tIdx=0;
   for (auto sp: topSPs){
-    spTmat_cpu.SetEl(i_t,0,sp->x());
-    spTmat_cpu.SetEl(i_t,1,sp->y());
-    spTmat_cpu.SetEl(i_t,2,sp->z());
-    spTmat_cpu.SetEl(i_t,3,sp->radius());
-    spTmat_cpu.SetEl(i_t,4,sp->varianceR());
-    spTmat_cpu.SetEl(i_t,5,sp->varianceZ());
+    spTmat_cpu.SetEl(tIdx,0,sp->x());
+    spTmat_cpu.SetEl(tIdx,1,sp->y());
+    spTmat_cpu.SetEl(tIdx,2,sp->z());
+    spTmat_cpu.SetEl(tIdx,3,sp->radius());
+    spTmat_cpu.SetEl(tIdx,4,sp->varianceR());
+    spTmat_cpu.SetEl(tIdx,5,sp->varianceZ());
     topSPvec.push_back(sp);
-    i_t++;    
+    tIdx++;    
   }
 
   /*------------------------------------
@@ -308,20 +308,20 @@ namespace Acts {
     auto bIndex = std::get<1>(mCompIndex[i_c]);
     auto tIndex = std::get<2>(mCompIndex[i_c]);
 
-    //std::cout << i_m << "  CUDA Compatible Hits: " << bIndex.size() << "  " << tIndex.size() << std::endl;
-    
-    int nSpB = bIndex.size();
-    int nSpT = tIndex.size();
-    
+    //std::cout << i_m << "  CUDA Compatible Hits: " << bIndex.size() << "  " << tIndex.size() << std::endl;    
     dim3 TC_GridSize;
     dim3 TC_BlockSize(2*WARP_SIZE);
-    //spM_cuda.CopyH2D(spMmat_cpu.GetRow(mIndex),6);
     
     // bottom transform coordinate
-    TC_GridSize = dim3(int(nSpB/TC_BlockSize.x)+1,1,1);
+    TC_GridSize = dim3(int(bIndex.size()/TC_BlockSize.x)+1,1,1);
     for (int i=0; i<bIndex.size(); i++){
       int i_b = bIndex[i];
-      spBcompMat_cpu.SetRow(i,spBmat_cpu.GetRow(i_b));
+      spBcompMat_cpu.SetEl(i,0,*spBmat_cpu.GetEl(i_b,0));
+      spBcompMat_cpu.SetEl(i,1,*spBmat_cpu.GetEl(i_b,1));
+      spBcompMat_cpu.SetEl(i,2,*spBmat_cpu.GetEl(i_b,2));
+      spBcompMat_cpu.SetEl(i,3,*spBmat_cpu.GetEl(i_b,3));
+      spBcompMat_cpu.SetEl(i,4,*spBmat_cpu.GetEl(i_b,4));
+      spBcompMat_cpu.SetEl(i,5,*spBmat_cpu.GetEl(i_b,5));
     }
     spBcompMat_cuda.CopyH2D(spBcompMat_cpu.GetEl(), bIndex.size()*6);
     
@@ -334,10 +334,15 @@ namespace Acts {
 						circBcompMat_cuda.GetEl(0,0));
 
     // top transform coordinate
-    TC_GridSize = dim3(int(nSpT/TC_BlockSize.x)+1,1,1);    
+    TC_GridSize = dim3(int(tIndex.size()/TC_BlockSize.x)+1,1,1);    
     for (int i=0; i<tIndex.size(); i++){
       int i_t = tIndex[i];
-      spTcompMat_cpu.SetRow(i,spTmat_cpu.GetRow(i_t));
+      spTcompMat_cpu.SetEl(i,0,*spTmat_cpu.GetEl(i_t,0));
+      spTcompMat_cpu.SetEl(i,1,*spTmat_cpu.GetEl(i_t,1));
+      spTcompMat_cpu.SetEl(i,2,*spTmat_cpu.GetEl(i_t,2));
+      spTcompMat_cpu.SetEl(i,3,*spTmat_cpu.GetEl(i_t,3));
+      spTcompMat_cpu.SetEl(i,4,*spTmat_cpu.GetEl(i_t,4));
+      spTcompMat_cpu.SetEl(i,5,*spTmat_cpu.GetEl(i_t,5));
     }
     spTcompMat_cuda.CopyH2D(spTcompMat_cpu.GetEl(), tIndex.size()*6);
     SeedfinderCUDAKernels::transformCoordinates(TC_GridSize, TC_BlockSize,
@@ -352,14 +357,14 @@ namespace Acts {
        Algorithm 3. Triplet Search (TS)
      -------------------------------------*/
     
-    dim3 TS_GridSize(nSpB,1,1);
+    dim3 TS_GridSize(bIndex.size(),1,1);
     dim3 TS_BlockSize;
     nTopPass_cuda.CopyH2D(&zeros[0], nTopPass_cuda.GetSize());
     
     offset = 0;
-    while(offset<nSpT){
-      BlockSize    = fmin(nSpT, MAX_BLOCK_SIZE);
-      BlockSize    = fmin(BlockSize,nSpT-offset);
+    while(offset<tIndex.size()){
+      BlockSize    = fmin(tIndex.size(), MAX_BLOCK_SIZE);
+      BlockSize    = fmin(BlockSize,tIndex.size()-offset);
       TS_BlockSize = dim3(BlockSize,1,1);
       
       SeedfinderCUDAKernels::searchTriplet(TS_GridSize, TS_BlockSize,
@@ -386,60 +391,76 @@ namespace Acts {
       offset += BlockSize;
     }
 
+    /* --------------------------------
+       Algorithm 4. Seed Filter (SF)
+     --------------------------------*/
+
+    std::vector<const InternalSpacePoint<external_spacepoint_t> *> topSpVec;
+    std::vector<float> curvatures;
+    std::vector<float> impactParameters;
+    
+    // SEED Filtering is done ASYNCHRONOUSLY against Triplet search
+    // Need to call it again after last iteration
+
+    if (i_c > 0){
+      for (int i_b=0; i_b<bIndex.size(); i_b++){
+	if (nTopPass_cpu[i_b]==0) continue;      
+	topSpVec.clear();
+	curvatures.clear();
+	impactParameters.clear();      
+	float Zob = Zob_cpu[i_b];      
+	
+	for(int i_t=0; i_t<nTopPass_cpu[i_b]; i_t++){       
+	  topSpVec.push_back(topSPvec[tIndex[i_t]]);	
+	  curvatures.push_back(*curvatures_cpu.GetEl(i_t,i_b));
+	  impactParameters.push_back(*impactparameters_cpu.GetEl(i_t,i_b));
+	}
+		
+	std::vector<std::pair<float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>> sameTrackSeeds;
+	sameTrackSeeds = std::move(m_config.seedFilter->filterSeeds_2SpFixed(*bottomSPvec[bIndex[i_b]],
+									     *middleSPvec[mIndex],
+									     topSpVec,
+									     curvatures,
+									     impactParameters,Zob)); 
+	seedsPerSpM.insert(seedsPerSpM.end(),
+			   std::make_move_iterator(sameTrackSeeds.begin()),
+			   std::make_move_iterator(sameTrackSeeds.end()));	      
+      }
+      m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
+    }
+    
     nTopPass_cpu.CopyD2H(nTopPass_cuda.Get(), nBcompMax_cpu[0]);
     Zob_cpu.CopyD2H(circBcompMat_cuda.GetEl(0,0),nBcompMax_cpu[0]);
     curvatures_cpu.CopyD2H(curvatures_cuda.GetEl(0,0),             nTopPassLimit*nBcompMax_cpu[0]);
     impactparameters_cpu.CopyD2H(impactparameters_cuda.GetEl(0,0), nTopPassLimit*nBcompMax_cpu[0]);
-    
-    /* --------------------------------
-       Algorithm 4. Seed Filter (SF)
-     --------------------------------*/
-    
-    std::vector<const InternalSpacePoint<external_spacepoint_t> *> topSpVec;
-    std::vector<float> curvatures;
-    std::vector<float> impactParameters;
 
-    
-    for (int i_b=0; i_b<nSpB; i_b++){
-      if (nTopPass_cpu[i_b]==0) continue;      
-      topSpVec.clear();
-      curvatures.clear();
-      impactParameters.clear();
-      
-      int g_bIndex = bIndex[i_b];      
-      float Zob = Zob_cpu[i_b];
-      /*
-      if (nTopPass_cpu[i_b] && i_b<1){
-	std::cout << i_b << "  " << nTopPass_cpu[i_b] << std::endl;
-      }
-      */
-      for(int i_t=0; i_t<nTopPass_cpu[i_b]; i_t++){
+    if (i_c == mCompIndex.size()-1 ){
+      for (int i_b=0; i_b<bIndex.size(); i_b++){
+	if (nTopPass_cpu[i_b]==0) continue;      
+	topSpVec.clear();
+	curvatures.clear();
+	impactParameters.clear();      
+	float Zob = Zob_cpu[i_b];
+
+	for(int i_t=0; i_t<nTopPass_cpu[i_b]; i_t++){       
+	  topSpVec.push_back(topSPvec[tIndex[i_t]]);	
+	  curvatures.push_back(*curvatures_cpu.GetEl(i_t,i_b));
+	  impactParameters.push_back(*impactparameters_cpu.GetEl(i_t,i_b));
+	}
 	
-	int g_tIndex = tIndex[i_t];
-	topSpVec.push_back(topSPvec[g_tIndex]);	
-	curvatures.push_back(*curvatures_cpu.GetEl(i_t,i_b));
-	impactParameters.push_back(*impactparameters_cpu.GetEl(i_t,i_b));
-
-	//std::cout << "Curvatures: " << *curvatures_cpu.GetEl(i_t,i_b) <<"  impactParameters: " << *impactparameters_cpu.GetEl(i_t,i_b) << std::endl;
+	std::vector<std::pair<float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>> sameTrackSeeds;
+	sameTrackSeeds = std::move(m_config.seedFilter->filterSeeds_2SpFixed(*bottomSPvec[bIndex[i_b]],
+									     *middleSPvec[mIndex],
+									     topSpVec,
+									     curvatures,
+									     impactParameters,Zob)); 
+	seedsPerSpM.insert(seedsPerSpM.end(),
+			   std::make_move_iterator(sameTrackSeeds.begin()),
+			   std::make_move_iterator(sameTrackSeeds.end()));	      
       }
-      
-      std::vector<std::pair<
-	float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
-	sameTrackSeeds;
-      sameTrackSeeds = std::move(m_config.seedFilter->filterSeeds_2SpFixed(*bottomSPvec[g_bIndex],
-									   *middleSPvec[mIndex],
-									   topSpVec,
-									   curvatures,
-									   impactParameters,Zob)); 
-      
-      seedsPerSpM.insert(seedsPerSpM.end(),
-			 std::make_move_iterator(sameTrackSeeds.begin()),
-			 std::make_move_iterator(sameTrackSeeds.end()));	
-      
-      //std::cout << "b: " << i_b << "  SeedsPerSpM: " << seedsPerSpM.size() << std::endl;
+      m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);      
     }
     
-    m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
     //std::cout << "Final SeedsPerSpM: " << seedsPerSpM.size() << std::endl;
   }  
   return outputVec;  

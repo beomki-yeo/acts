@@ -268,7 +268,7 @@ __global__ void cuSearchTriplet(const int*   nSpM,
   float varianceZM = spMmat[(*nSpM)*5];
   
   // Zob values from CPU and CUDA are slightly different
-  //float Zob        = circBmat[blockId+(*nSpB)*0];
+  //float Zob      = circBmat[blockId+(*nSpB)*0];
   float cotThetaB  = circBmat[blockId+(*nSpB)*1];
   float iDeltaRB   = circBmat[blockId+(*nSpB)*2];
   float ErB        = circBmat[blockId+(*nSpB)*3];
