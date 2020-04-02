@@ -31,15 +31,16 @@ public:
 			     );
 
   static void transformCoordinates( dim3 grid, dim3 block,
-				    const unsigned char*  isBottom, 
-				    const float* spM,
+				    const unsigned char*  isBottom,
+				    const int *  nSpM,
+				    const float* spMmat,
 				    const int*   nSpB,
 				    const float* spBmat,
 				    float* circBmat);
   
   static void searchTriplet( dim3 grid, dim3 block,
-			     const int*   offset,
-			     const float* spM,
+			     const int*   nSpM,
+			     const float* spMmat,
 			     const int*   nSpB, const float* rBmat,
 			     const int*   nSpT, const float* rTmat,			     
 			     const float* circBmat,
@@ -47,7 +48,7 @@ public:
 			     const float* maxScatteringAngle2, const float* sigmaScattering,
 			     const float* minHelixDiameter2,   const float* pT2perRadius,
 			     const float* impactMax,           const int*   nTopPassLimit,
-			     int*   nTopPass,   //int*   tIndex,
+			     int*   nTopPass,
 			     float* curvatures, float* impactparameters
 			     );
   

@@ -16,18 +16,18 @@ __global__ void cuSearchDoublet(const unsigned char* isBottom,
 				);
 
 __global__ void cuTransformCoordinates(const unsigned char* isBottom,
-				       const float* spM,
+				       const int *  nSpM,
+				       const float* spMmat,				       
 				       const int* nSpB,
 				       const float* spBmat,
 				       float* circBmat);
 
-__global__ void cuSearchTriplet(const int*   offset,
-				const float* spM,
+__global__ void cuSearchTriplet(const int*   nSpM,
+				const float* spMmat,
 				const int*   nSpB, const float* spBmat,
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				//const Acts::CuSeedfinderConfig* config
 				const float* maxScatteringAngle2, const float* sigmaScattering,
 				const float* minHelixDiameter2, const float* pT2perRadius,
 				const float* impactMax,
@@ -49,33 +49,32 @@ namespace Acts{
 				const float* collisionRegionMin, const float* collisionRegionMax,
 				unsigned char* isCompatible  ){
     
-  cuSearchDoublet<<< grid, block >>>(//offset,
-				     isBottom,
+  cuSearchDoublet<<< grid, block >>>(isBottom,
 				     rMvec, zMvec,
 				     nSpB, rBvec, zBvec, 
 				     deltaRMin, deltaRMax, cotThetaMax, 
 				     collisionRegionMin, collisionRegionMax,
-				     //config,
 				     isCompatible );
   gpuErrChk( cudaGetLastError() );
   }
 
   void SeedfinderCUDAKernels::transformCoordinates(
 				   dim3 grid, dim3 block,
-				   const unsigned char* isBottom, 
-				   const float* spM,
+				   const unsigned char* isBottom,
+				   const int *  nSpM,
+				   const float* spMmat,
 				   const int*   nSpB,
 				   const float* spBmat,
 				   float* circBmat){
     
-    cuTransformCoordinates<<< grid, block >>>(isBottom, spM, nSpB, spBmat, circBmat);
+    cuTransformCoordinates<<< grid, block >>>(isBottom, nSpM, spMmat, nSpB, spBmat, circBmat);
     gpuErrChk( cudaGetLastError() );  
   }
 
   void SeedfinderCUDAKernels::searchTriplet(
 				dim3 grid, dim3 block,
-				const int*   offset,
-				const float* spM,
+				const int*   nSpM,
+				const float* spMmat,
 				const int*   nSpB, const float* spBmat,
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
@@ -89,8 +88,8 @@ namespace Acts{
 				){
     
   cuSearchTriplet<<< grid, block, sizeof(unsigned char)*block.x >>>(
-			       offset,
-			       spM,
+			       nSpM,
+			       spMmat,
 			       nSpB, spBmat,
 			       nSpT, spTmat,				     
 			       circBmat,circTmat,
@@ -176,7 +175,8 @@ __global__ void cuSearchDoublet(const unsigned char* isBottom,
 
 
 __global__ void cuTransformCoordinates(const unsigned char* isBottom,
-				       const float* spM,
+				       const int *  nSpM,
+				       const float* spMmat,
 				       const int* nSpB,
 				       const float* spBmat,
 				       float* circBmat){
@@ -184,12 +184,13 @@ __global__ void cuTransformCoordinates(const unsigned char* isBottom,
   int globalId = threadIdx.x+blockDim.x*blockIdx.x;
   if (globalId>=*nSpB) return;
   
-  float xM = spM[0];
-  float yM = spM[1];
-  float zM = spM[2];
-  float rM = spM[3];
-  float varianceRM = spM[4];
-  float varianceZM = spM[5];
+  float xM = spMmat[(*nSpM)*0];
+  float yM = spMmat[(*nSpM)*1];
+  float zM = spMmat[(*nSpM)*2];
+  float rM = spMmat[(*nSpM)*3];
+  float varianceRM = spMmat[(*nSpM)*4];
+  float varianceZM = spMmat[(*nSpM)*5];
+  
   float cosPhiM = xM / rM;
   float sinPhiM = yM / rM;
     
@@ -243,19 +244,17 @@ __global__ void cuTransformCoordinates(const unsigned char* isBottom,
   
 }
 
-__global__ void cuSearchTriplet(const int*   offset,
-				const float* spM,
+__global__ void cuSearchTriplet(const int*   nSpM,
+				const float* spMmat,
 				const int*   nSpB, const float* spBmat,
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				//const Acts::CuSeedfinderConfig* config
 				const float* maxScatteringAngle2, const float* sigmaScattering,
 				const float* minHelixDiameter2,    const float* pT2perRadius,
 				const float* impactMax,
 				const int*   nTopPassLimit,
 				int* nTopPass,
-				//int* tIndex,
 				float* curvatures,
 				float* impactparameters
 				){
@@ -264,10 +263,10 @@ __global__ void cuSearchTriplet(const int*   offset,
   int threadId = threadIdx.x;
   int blockId  = blockIdx.x;
 
-  float rM = spM[3];
-  float varianceRM = spM[4];
-  float varianceZM = spM[5];
-
+  float rM = spMmat[(*nSpM)*3];
+  float varianceRM = spMmat[(*nSpM)*4];
+  float varianceZM = spMmat[(*nSpM)*5];
+  
   // Zob values from CPU and CUDA are slightly different
   //float Zob        = circBmat[blockId+(*nSpB)*0];
   float cotThetaB  = circBmat[blockId+(*nSpB)*1];

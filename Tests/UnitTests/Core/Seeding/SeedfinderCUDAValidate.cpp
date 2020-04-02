@@ -225,8 +225,11 @@ int main(int argc, char** argv) {
   }
   
   std::cout << "Number of Seeds (CPU | CUDA): " << nSeed_cpu << " | " << nSeed_cuda << std::endl;
-  /*
+
+  
   if (!quiet) {
+    std::cout << "CPU Seed result:" << std::endl;
+    
     for (auto& regionVec : seedVector_cpu) {
       for (size_t i = 0; i < regionVec.size(); i++) {
         const Acts::Seed<SpacePoint>* seed = &regionVec[i];
@@ -242,8 +245,28 @@ int main(int argc, char** argv) {
         std::cout << std::endl;
       }
     }
+    
+    std::cout << std::endl;
+    std::cout << "CUDA Seed result:" << std::endl;
+
+    for (auto& regionVec : seedVector_cuda) {
+      for (size_t i = 0; i < regionVec.size(); i++) {
+        const Acts::Seed<SpacePoint>* seed = &regionVec[i];
+        const SpacePoint* sp = seed->sp()[0];
+        std::cout << " (" << sp->x() << ", " << sp->y() << ", " << sp->z()
+                  << ") ";
+        sp = seed->sp()[1];
+        std::cout << sp->surface << " (" << sp->x() << ", " << sp->y() << ", "
+                  << sp->z() << ") ";
+        sp = seed->sp()[2];
+        std::cout << sp->surface << " (" << sp->x() << ", " << sp->y() << ", "
+                  << sp->z() << ") ";
+        std::cout << std::endl;
+      }
+    }
   }
-  */
+
+ 
   return 0;
 }
 

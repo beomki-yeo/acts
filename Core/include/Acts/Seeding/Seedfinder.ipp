@@ -161,7 +161,9 @@ namespace Acts {
     middleSPvec.push_back(sp);
     i_m++;
   }
-
+  CUDAMatrix<float> spMmat_cuda(nMiddle, 6, &spMmat_cpu);
+  CUDAArray<int>    nSpM_cuda(1,&nMiddle,1);
+  
   size_t i_b=0;
   for (auto sp: bottomSPs){
     spBmat_cpu.SetEl(i_b,0,sp->x());
@@ -278,11 +280,10 @@ namespace Acts {
   CUDAMatrix<float> spBcompMat_cuda(nBcompMax_cpu[0],6);   
   CUDAMatrix<float> spTcompMat_cuda(nTcompMax_cpu[0],6);   
   CUDAMatrix<float> circBcompMat_cuda(nBcompMax_cpu[0],6); 
-  CUDAMatrix<float> circTcompMat_cuda(nTcompMax_cpu[0],6); 
-  CUDAArray<float>  spM_cuda(6);
+  CUDAMatrix<float> circTcompMat_cuda(nTcompMax_cpu[0],6);
+  CPUArray<float>   Zob_cpu(nBcompMax_cpu[0]); 
 
   // For Triplet Search
-  CUDAArray<int>    offset_cuda(1);
   const int         nTopPassLimit = 10;    
   CUDAArray<int>    nTopPassLimit_cuda(1, &nTopPassLimit, 1);  
   std::vector<int>  zeros(nBcompMax_cpu[0],0); // Zero initialization;
@@ -314,7 +315,7 @@ namespace Acts {
     
     dim3 TC_GridSize;
     dim3 TC_BlockSize(2*WARP_SIZE);
-    spM_cuda.CopyH2D(spMmat_cpu.GetRow(mIndex),6);
+    //spM_cuda.CopyH2D(spMmat_cpu.GetRow(mIndex),6);
     
     // bottom transform coordinate
     TC_GridSize = dim3(int(nSpB/TC_BlockSize.x)+1,1,1);
@@ -326,8 +327,8 @@ namespace Acts {
     
     SeedfinderCUDAKernels::transformCoordinates(TC_GridSize, TC_BlockSize,
 						bottom_cuda.Get(),
-						spM_cuda.Get(),
-						//spMtransMat_cuda.GetEl(0,i_c),
+						nSpM_cuda.Get(),
+						spMmat_cuda.GetEl(mIndex,0),
 						nBcompMax_cuda.Get(),
 						spBcompMat_cuda.GetEl(0,0),
 						circBcompMat_cuda.GetEl(0,0));
@@ -341,8 +342,8 @@ namespace Acts {
     spTcompMat_cuda.CopyH2D(spTcompMat_cpu.GetEl(), tIndex.size()*6);
     SeedfinderCUDAKernels::transformCoordinates(TC_GridSize, TC_BlockSize,
 						top_cuda.Get(),
-						spM_cuda.Get(),
-						//spMtransMat_cuda.GetEl(0,i_c),
+						nSpM_cuda.Get(),
+						spMmat_cuda.GetEl(mIndex,0),
 						nTcompMax_cuda.Get(),
 						spTcompMat_cuda.GetEl(0,0),
 						circTcompMat_cuda.GetEl(0,0));
@@ -357,16 +358,13 @@ namespace Acts {
     
     offset = 0;
     while(offset<nSpT){
-      offset_cuda.CopyH2D(&offset,1);
-      //std::cout << offset << "  " << nSpT << std::endl;
       BlockSize    = fmin(nSpT, MAX_BLOCK_SIZE);
       BlockSize    = fmin(BlockSize,nSpT-offset);
       TS_BlockSize = dim3(BlockSize,1,1);
       
       SeedfinderCUDAKernels::searchTriplet(TS_GridSize, TS_BlockSize,
-					   offset_cuda.Get(),
-					   spM_cuda.Get(),
-					   //spMtransMat_cuda.GetEl(0,i_c),
+					   nSpM_cuda.Get(),
+					   spMmat_cuda.GetEl(mIndex,0),
 					   nBcompMax_cuda.Get(),
 					   spBcompMat_cuda.GetEl(0,0),
 					   nTcompMax_cuda.Get(),				     
@@ -389,9 +387,10 @@ namespace Acts {
     }
 
     nTopPass_cpu.CopyD2H(nTopPass_cuda.Get(), nBcompMax_cpu[0]);
+    Zob_cpu.CopyD2H(circBcompMat_cuda.GetEl(0,0),nBcompMax_cpu[0]);
     curvatures_cpu.CopyD2H(curvatures_cuda.GetEl(0,0),             nTopPassLimit*nBcompMax_cpu[0]);
     impactparameters_cpu.CopyD2H(impactparameters_cuda.GetEl(0,0), nTopPassLimit*nBcompMax_cpu[0]);
-
+    
     /* --------------------------------
        Algorithm 4. Seed Filter (SF)
      --------------------------------*/
@@ -399,7 +398,7 @@ namespace Acts {
     std::vector<const InternalSpacePoint<external_spacepoint_t> *> topSpVec;
     std::vector<float> curvatures;
     std::vector<float> impactParameters;
-    auto Zob_arr = circBcompMat_cuda.GetCPUArray(nSpB,0,0);
+
     
     for (int i_b=0; i_b<nSpB; i_b++){
       if (nTopPass_cpu[i_b]==0) continue;      
@@ -408,7 +407,7 @@ namespace Acts {
       impactParameters.clear();
       
       int g_bIndex = bIndex[i_b];      
-      float Zob = *(Zob_arr->Get(i_b)); 
+      float Zob = Zob_cpu[i_b];
       /*
       if (nTopPass_cpu[i_b] && i_b<1){
 	std::cout << i_b << "  " << nTopPass_cpu[i_b] << std::endl;
@@ -428,7 +427,6 @@ namespace Acts {
 	float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
 	sameTrackSeeds;
       sameTrackSeeds = std::move(m_config.seedFilter->filterSeeds_2SpFixed(*bottomSPvec[g_bIndex],
-									   //*middleSPvec[i_m],
 									   *middleSPvec[mIndex],
 									   topSpVec,
 									   curvatures,
@@ -440,6 +438,7 @@ namespace Acts {
       
       //std::cout << "b: " << i_b << "  SeedsPerSpM: " << seedsPerSpM.size() << std::endl;
     }
+    
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
     //std::cout << "Final SeedsPerSpM: " << seedsPerSpM.size() << std::endl;
   }  
