@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
                                                  bottomBinFinder, topBinFinder,
                                                  std::move(grid), config);
 
-  int nGroupToIterate = 500;
+  int nGroupToIterate = 2;
   int group_count;
   ///////// CPU
   group_count=0;
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
   
 
   ///////// CUDA
-  cudaProfilerStart();
+  //cudaProfilerStart();
   
   group_count=0;
   std::vector<std::vector<Acts::Seed<SpacePoint>>> seedVector_cuda;
@@ -212,7 +212,7 @@ int main(int argc, char** argv) {
   std::cout << "CUDA Time: " << elapsec_cuda.count() << std::endl;
   std::cout << "Number of regions: " << seedVector_cpu.size() << std::endl;
 
-  cudaProfilerStop();
+  //cudaProfilerStop();
  
   int nSeed_cpu = 0;
   for (auto& outVec : seedVector_cpu) {

@@ -69,6 +69,18 @@ public:
       fHostPtr[row+fNRows*i_c]=input[i_c];
     }
   }
+
+  void SetColumn(size_t col, Var_t* input){
+    /*
+    for(size_t i_c=0; i_c<fNCols; i_c++){
+      //(*fHostArray)[row+fNRows*i_c]=input[i_c];
+      fHostPtr[row+fNRows*i_c]=input[i_c];
+    }
+    */
+    //std::copy(fHostPtr+col*fNRows,fHostPtr+(col+1)*fNRows,input);
+    fHostPtr[col*fNRows] = input[0];
+  }
+
   
 private:
   //CPUArray<Var_t>* fHostArray;
