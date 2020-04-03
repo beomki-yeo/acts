@@ -36,7 +36,6 @@ public:
     cudaMemcpy(fHostPtr, devPtr+offset, len*sizeof(Var_t), cudaMemcpyDeviceToHost);
   }
 
-  // Need to test
    	Var_t& operator[](std::size_t idx)       { return fHostPtr[idx]; }
   const Var_t& operator[](std::size_t idx) const { return fHostPtr[idx]; }
 

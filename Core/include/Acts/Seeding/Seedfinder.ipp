@@ -99,10 +99,10 @@ namespace Acts {
 
   CUDAArray<unsigned char> isBottom_cuda(1);
 
-  unsigned char bottom_cpu = true;
-  CUDAArray<unsigned char> bottom_cuda(1,&bottom_cpu,1);  
-  unsigned char top_cpu    = false;
-  CUDAArray<unsigned char> top_cuda(1,&top_cpu,1);    
+  unsigned char true_cpu  = true;
+  unsigned char false_cpu = false;
+  CUDAArray<unsigned char> true_cuda(1,&true_cpu,1);  
+  CUDAArray<unsigned char> false_cuda(1,&false_cpu,1);    
   CUDAArray<float> deltaRMin_cuda(1, &m_config.deltaRMin, 1);
   CUDAArray<float> deltaRMax_cuda(1, &m_config.deltaRMax, 1);
   CUDAArray<float> cotThetaMax_cuda(1, &m_config.cotThetaMax, 1);
@@ -113,7 +113,7 @@ namespace Acts {
   CUDAArray<float> minHelixDiameter2_cuda(1, &m_config.minHelixDiameter2,1);
   CUDAArray<float> pT2perRadius_cuda(1, &m_config.pT2perRadius,1);
   CUDAArray<float> impactMax_cuda(1, &m_config.impactMax,1);
-  CUDAArray<int> offset_cuda(1);
+  CUDAArray<int>   offset_cuda(1);
   
   /*----------------------------------
      Algorithm 0. Matrix Flattening 
@@ -203,7 +203,7 @@ namespace Acts {
     BlockSize    = fmin(BlockSize,nBottom-offset);
     DS_BlockSize = dim3(BlockSize,1,1);
     SeedfinderCUDAKernels::searchDoublet( DS_GridSize, DS_BlockSize,
-					  bottom_cuda.Get(),
+					  true_cuda.Get(),
 					  rM_cuda.Get(), zM_cuda.Get(),
 					  nBottom_cuda.Get(), rB_cuda.Get(offset), zB_cuda.Get(offset), 
 					  deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
@@ -223,7 +223,7 @@ namespace Acts {
     DS_BlockSize = dim3(BlockSize,1,1);
 
     SeedfinderCUDAKernels::searchDoublet( DS_GridSize, DS_BlockSize,
-					  top_cuda.Get(),
+					  false_cuda.Get(),
 					  rM_cuda.Get(), zM_cuda.Get(),
 					  nTop_cuda.Get(), rT_cuda.Get(offset), zT_cuda.Get(offset), 
 					  deltaRMin_cuda.Get(), deltaRMax_cuda.Get(), 
@@ -317,7 +317,7 @@ namespace Acts {
     spBcompMat_cuda.CopyH2D(spBcompMat_cpu.GetEl(), nBcompMax_cpu[0]*6);
     
     SeedfinderCUDAKernels::transformCoordinates(TC_GridSize, TC_BlockSize,
-						bottom_cuda.Get(),
+						true_cuda.Get(),
 						nSpM_cuda.Get(),
 						spMmat_cuda.GetEl(mIndex,0),
 						nBcompMax_cuda.Get(),
@@ -337,7 +337,7 @@ namespace Acts {
     }
     spTcompMat_cuda.CopyH2D(spTcompMat_cpu.GetEl(), nTcompMax_cpu[0]*6);
     SeedfinderCUDAKernels::transformCoordinates(TC_GridSize, TC_BlockSize,
-						top_cuda.Get(),
+						false_cuda.Get(),
 						nSpM_cuda.Get(),
 						spMmat_cuda.GetEl(mIndex,0),
 						nTcompMax_cuda.Get(),
@@ -497,4 +497,3 @@ namespace Acts {
   return outputVec;  
   }  
 }// namespace Acts
-
