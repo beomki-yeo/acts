@@ -39,6 +39,7 @@ public:
 				    float* circBmat);
   
   static void searchTriplet( dim3 grid, dim3 block,
+			     const int*   offset,
 			     const int*   nSpM,
 			     const float* spMmat,
 			     const int*   nSpB, const float* rBmat,
@@ -48,7 +49,7 @@ public:
 			     const float* maxScatteringAngle2, const float* sigmaScattering,
 			     const float* minHelixDiameter2,   const float* pT2perRadius,
 			     const float* impactMax,           const int*   nTopPassLimit,
-			     int*   nTopPass,
+			     int*   nTopPass,   int* tIndex,
 			     float* curvatures, float* impactparameters
 			     );
   

@@ -22,7 +22,8 @@ __global__ void cuTransformCoordinates(const unsigned char* isBottom,
 				       const float* spBmat,
 				       float* circBmat);
 
-__global__ void cuSearchTriplet(const int*   nSpM,
+__global__ void cuSearchTriplet(const int*   offset,
+				const int*   nSpM,
 				const float* spMmat,
 				const int*   nSpB, const float* spBmat,
 				const int*   nSpT, const float* spTmat,
@@ -32,7 +33,7 @@ __global__ void cuSearchTriplet(const int*   nSpM,
 				const float* minHelixDiameter2, const float* pT2perRadius,
 				const float* impactMax,
 				const int*   nTopPassLimit,
-				int* nTopPass,
+				int* nTopPass, int* tIndex,
 				float* curvatures,
 				float* impactparameters				
 				);
@@ -73,32 +74,31 @@ namespace Acts{
 
   void SeedfinderCUDAKernels::searchTriplet(
 				dim3 grid, dim3 block,
+				const int*   offset,
 				const int*   nSpM,
 				const float* spMmat,
 				const int*   nSpB, const float* spBmat,
 				const int*   nSpT, const float* spTmat,
 				const float* circBmat,
 				const float* circTmat,
-				// finder config
 				const float* maxScatteringAngle2, const float* sigmaScattering,
 				const float* minHelixDiameter2,   const float* pT2perRadius,
 				const float* impactMax,           const int*   nTopPassLimit,	  
-				int*   nTopPass,
+				int*   nTopPass,   int* tIndex,
 				float* curvatures, float* impactparameters
 				){
-    
-  cuSearchTriplet<<< grid, block, sizeof(unsigned char)*block.x >>>(
+cuSearchTriplet<<< grid, block,
+      (sizeof(unsigned char)+2*sizeof(float))*block.x >>>(
+			       offset,
 			       nSpM,
 			       spMmat,
 			       nSpB, spBmat,
 			       nSpT, spTmat,				     
 			       circBmat,circTmat,
-			       //config				     
 			       maxScatteringAngle2, sigmaScattering,
 			       minHelixDiameter2, pT2perRadius,
 			       impactMax, nTopPassLimit,
-			       //output
-			       nTopPass,
+			       nTopPass, tIndex,
 			       curvatures, impactparameters
 			       );
   gpuErrChk( cudaGetLastError() );
@@ -126,7 +126,6 @@ __global__ void cuSearchDoublet(const unsigned char* isBottom,
   
   if (*isBottom == true){    
     float deltaR = rM - rB;
-    //printf("%d %d \n", globalId, *nSpB);
     if (deltaR > *deltaRMax){
       isCompatible[globalId] = false;
     }
@@ -149,7 +148,6 @@ __global__ void cuSearchDoublet(const unsigned char* isBottom,
   // Doublet search for top hits
   else if (*isBottom == false){    
     float deltaR = rB - rM;
-    //printf("%d %d \n", globalId, *nSpB);
     if (deltaR < *deltaRMin){
       isCompatible[globalId] = false;
     }
@@ -200,7 +198,7 @@ __global__ void cuTransformCoordinates(const unsigned char* isBottom,
   //float rB = spBmat[globalId+(*nSpB)*3];
   float varianceRB = spBmat[globalId+(*nSpB)*4];
   float varianceZB = spBmat[globalId+(*nSpB)*5];
-  
+
   float deltaX = xB - xM;
   float deltaY = yB - yM;
   float deltaZ = zB - zM;
@@ -241,10 +239,10 @@ __global__ void cuTransformCoordinates(const unsigned char* isBottom,
   circBmat[globalId+(*nSpB)*3] = Er;
   circBmat[globalId+(*nSpB)*4] = U;
   circBmat[globalId+(*nSpB)*5] = V; 
-  
 }
 
-__global__ void cuSearchTriplet(const int*   nSpM,
+__global__ void cuSearchTriplet(const int*   offset,
+				const int*   nSpM,
 				const float* spMmat,
 				const int*   nSpB, const float* spBmat,
 				const int*   nSpT, const float* spTmat,
@@ -255,18 +253,23 @@ __global__ void cuSearchTriplet(const int*   nSpM,
 				const float* impactMax,
 				const int*   nTopPassLimit,
 				int* nTopPass,
+				int* tIndex,
 				float* curvatures,
 				float* impactparameters
 				){
-  __shared__ extern unsigned char isPassed[];
+  extern __shared__ float shared[];
+  
+  float* impact   = (float*)shared;
+  float* invHelix = (float*)&impact[blockDim.x];
+  unsigned char* isPassed = (unsigned char*)&invHelix[blockDim.x];  
   
   int threadId = threadIdx.x;
   int blockId  = blockIdx.x;
 
-  float rM = spMmat[(*nSpM)*3];
+  float rM         = spMmat[(*nSpM)*3];
   float varianceRM = spMmat[(*nSpM)*4];
   float varianceZM = spMmat[(*nSpM)*5];
-  
+
   // Zob values from CPU and CUDA are slightly different
   //float Zob        = circBmat[blockId+(*nSpB)*0];
   float cotThetaB  = circBmat[blockId+(*nSpB)*1];
@@ -351,49 +354,28 @@ __global__ void cuSearchTriplet(const int*   nSpM,
   // function
   // (in contrast to having to solve a quadratic function in x/y plane)
 
-  float impact   = fabs((A - B * rM) * rM);
-  float invHelix = B / sqrt(S2);
-  
-  if (impact > (*impactMax)){
-    isPassed[threadId] = false;
-  }  
+  impact[threadIdx.x] = fabs((A - B * rM) * rM);
+  invHelix[threadIdx.x] = B / sqrt(S2);
 
-  // Consider a full reduction to count nTopPass
-  // Now just use atomicAdd
-  if (isPassed[threadId] == true){
+  if (impact[threadIdx.x] > (*impactMax)){
+    isPassed[threadId] = false;
+  }    
+ 
+  __syncthreads();
+
+  // The index will be different (and not deterministic) becuase of atomic operation
+  // It will be resorted after kernel call
+  if (isPassed[threadIdx.x] == true){
     int pos = atomicAdd(&nTopPass[blockId],1);
     if (pos<*nTopPassLimit){
-      //printf("%d %d\n", blockId, nTopPass[blockId]);
-      impactparameters[pos+(*nTopPassLimit)*blockId] = impact;
-      curvatures      [pos+(*nTopPassLimit)*blockId] = invHelix;
-      
+      impactparameters[pos+(*nTopPassLimit)*blockId] = impact[threadIdx.x];
+      curvatures      [pos+(*nTopPassLimit)*blockId] = invHelix[threadIdx.x];
+      tIndex          [pos+(*nTopPassLimit)*blockId] = threadIdx.x + (*offset);      
     }
   }
-  
-  //__syncthreads();
 
-  /*
-  if (threadId == 0 && blockId==0 ){
-    printf("%f %f %f %f %f %f  \n", Zob, cotThetaB, iDeltaRB, ErB, Ub, Vb);
-    printf("%f %f %f %f %f %f  \n", Zot, cotThetaT, iDeltaRT, ErT, Ut, Vt);
+  __syncthreads();
+  if (threadIdx.x == 0 && nTopPass[blockIdx.x] > *nTopPassLimit){
+    nTopPass[blockIdx.x] = *nTopPassLimit;
   }
-  */
-
-  /*
-  if (threadId == 0 && blockId==0 ){
-    printf("%f %f \n", iSinTheta2, scatteringInRegion2);
-  }
-  */
-  
-  /*
-  if (threadId == 0 ){
-    int passCount =0;
-    for (int i=0; i<blockDim.x; i++){
-      if (isPassed[i] == true) passCount++;
-    }
-    if (passCount >0){
-      printf("Pass top seeds: %d \n", passCount);
-    }
-  }
-  */
 }

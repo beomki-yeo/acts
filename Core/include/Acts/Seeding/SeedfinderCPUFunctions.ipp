@@ -146,6 +146,8 @@ namespace Acts{
     float zM = spM.z();
     float varianceRM = spM.varianceR();
     float varianceZM = spM.varianceZ();
+
+    //std::cout << rM << "  " << varianceRM << "  " << varianceZM << std::endl;
     
     // create vectors here to avoid reallocation in each loop
     std::vector<const InternalSpacePoint<external_spacepoint_t>*> topSpVec;
@@ -276,18 +278,18 @@ namespace Acts{
       }
       
       if (!topSpVec.empty()) {
-
-	/*
-	if (b<1){
-	  std::cout << b << "  " << topSpVec.size() << std::endl;
-	}
-	*/
-
+	
+	//if (b<5){
+	  //  std::cout << b << "  " << topSpVec.size() << std::endl;
+	  //	}	
+	//std::cout << b << "  " << Zob << "  " << topSpVec.size() << std::endl;
+	
         std::vector<std::pair<
             float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>
             sameTrackSeeds;
         sameTrackSeeds = std::move(config.seedFilter->filterSeeds_2SpFixed(*compatBottomSP[b], spM, topSpVec, curvatures, impactParameters,Zob));
-									   //*compatBottomSP[b], *spM, topSpVec, curvatures, impactParameters,Zob));
+
+	//*compatBottomSP[b], *spM, topSpVec, curvatures, impactParameters,Zob));
         seedsPerSpM.insert(seedsPerSpM.end(),
                            std::make_move_iterator(sameTrackSeeds.begin()),
                            std::make_move_iterator(sameTrackSeeds.end()));

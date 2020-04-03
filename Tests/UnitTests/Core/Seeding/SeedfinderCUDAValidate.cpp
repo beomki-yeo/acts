@@ -71,6 +71,8 @@ std::vector<const SpacePoint*> readFile(std::string filename) {
 }
 
 int main(int argc, char** argv) {
+  auto start_pre = std::chrono::system_clock::now();
+  
   std::string devName;
   SetDevice(0,devName);
   
@@ -172,7 +174,12 @@ int main(int argc, char** argv) {
                                                  bottomBinFinder, topBinFinder,
                                                  std::move(grid), config);
 
-  int nGroupToIterate =500;
+  auto end_pre = std::chrono::system_clock::now();
+  
+  std::chrono::duration<double> elapsec_pre = end_pre - start_pre;
+  std::cout << "Preprocess Time: " << elapsec_pre.count() << std::endl;
+  
+  int nGroupToIterate = 500;
   int group_count;
   ///////// CPU
   group_count=0;
@@ -180,12 +187,14 @@ int main(int argc, char** argv) {
   auto start_cpu = std::chrono::system_clock::now();
   auto groupIt = spGroup.begin();
   auto endOfGroups = spGroup.end();
+  
   for (; !(groupIt == endOfGroups); ++groupIt) {
     seedVector_cpu.push_back(seedfinder_cpu.createSeedsForGroup(
         groupIt.bottom(), groupIt.middle(), groupIt.top()));
     group_count++;
     if (group_count >= nGroupToIterate) break;
   }
+  
   auto end_cpu = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsec_cpu = end_cpu - start_cpu;
   std::cout << "CPU Time: " << elapsec_cpu.count() << std::endl;
@@ -226,7 +235,57 @@ int main(int argc, char** argv) {
   
   std::cout << "Number of Seeds (CPU | CUDA): " << nSeed_cpu << " | " << nSeed_cuda << std::endl;
 
+  int nMatch = 0;
   
+  for (size_t i =0; i < seedVector_cpu.size(); i++){    
+    auto regionVec_cpu  = seedVector_cpu[i];
+    auto regionVec_cuda = seedVector_cuda[i];
+
+    std::vector< std::vector< SpacePoint > > seeds_cpu;
+    std::vector< std::vector< SpacePoint > > seeds_cuda;
+              
+    for (size_t i_cpu = 0; i_cpu < regionVec_cpu.size(); i_cpu++) {
+
+      std::vector< SpacePoint > seed_cpu;
+      SpacePoint sp0 = *(regionVec_cpu[i_cpu].sp()[0]);
+      SpacePoint sp1 = *(regionVec_cpu[i_cpu].sp()[1]);
+      SpacePoint sp2 = *(regionVec_cpu[i_cpu].sp()[2]);      
+      
+      seed_cpu.push_back(sp0);
+      seed_cpu.push_back(sp1);
+      seed_cpu.push_back(sp2);
+
+      seeds_cpu.push_back(seed_cpu);
+    }
+
+    for (size_t i_cuda = 0; i_cuda < regionVec_cuda.size(); i_cuda++) {
+
+      std::vector< SpacePoint > seed_cuda;     
+      SpacePoint sp0 = *(regionVec_cuda[i_cuda].sp()[0]);
+      SpacePoint sp1 = *(regionVec_cuda[i_cuda].sp()[1]);
+      SpacePoint sp2 = *(regionVec_cuda[i_cuda].sp()[2]);      
+      
+      seed_cuda.push_back(sp0);
+      seed_cuda.push_back(sp1);
+      seed_cuda.push_back(sp2);
+
+      seeds_cuda.push_back(seed_cuda);
+    }
+    
+    for (auto seed: seeds_cpu){
+      for (auto other: seeds_cuda){
+	if (seed[0] == other[0] &&
+	    seed[1] == other[1] &&
+	    seed[2] == other[2]){
+	  nMatch++;
+	  break;
+	}
+      }
+    }
+  }
+
+  std::cout << nMatch << " seeds are matched" << std::endl;
+    
   if (!quiet) {
     std::cout << "CPU Seed result:" << std::endl;
     
