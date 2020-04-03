@@ -1,5 +1,7 @@
 # A Common Tracking Software (Acts) Project
 
+[![coverage](https://badgen.net/codecov/c/github/acts-project/acts/master)](https://codecov.io/gh/acts-project/acts/branch/master) [![10.5281/zenodo.3606011](https://badgen.net/badge/DOI/10.5281%2Fzenodo.3606011/blue)](https://doi.org/10.5281/zenodo.3606011) [![Chat on Mattermost](https://badgen.net/badge/chat/on%20mattermost/cyan)](https://mattermost.web.cern.ch/acts/)
+
 1. [Introduction](#intro)
 2. [Mailing list](#mailing-list)
 6. [License and authors](#license-authors)

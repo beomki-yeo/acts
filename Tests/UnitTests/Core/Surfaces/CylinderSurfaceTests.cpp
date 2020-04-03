@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(CylinderSurfaceConstruction) {
   //
   /// Constructor with transform pointer, radius, halfZ and halfPhiSector
   BOOST_CHECK_EQUAL(Surface::makeShared<CylinderSurface>(pTransform, radius,
-                                                         halfPhiSector, halfZ)
+                                                         halfZ, halfPhiSector)
                         ->type(),
                     Surface::Cylinder);
 
@@ -88,10 +88,6 @@ BOOST_AUTO_TEST_CASE(CylinderSurfaceProperties) {
   auto pTransform = std::make_shared<const Transform3D>(translation);
   auto cylinderSurfaceObject =
       Surface::makeShared<CylinderSurface>(pTransform, radius, halfZ);
-  //
-  auto pClonedCylinderSurface =
-      cylinderSurfaceObject->clone(testContext, Transform3D::Identity());
-  BOOST_CHECK_EQUAL(pClonedCylinderSurface->type(), Surface::Cylinder);
   //
   /// Test type (redundant)
   BOOST_CHECK_EQUAL(cylinderSurfaceObject->type(), Surface::Cylinder);
@@ -149,7 +145,7 @@ BOOST_AUTO_TEST_CASE(CylinderSurfaceProperties) {
   //
   /// Test bounds
   BOOST_CHECK_EQUAL(cylinderSurfaceObject->bounds().type(),
-                    SurfaceBounds::Cylinder);
+                    SurfaceBounds::eCylinder);
   //
   /// Test localToGlobal
   Vector2D localPosition{0., 0.};
@@ -211,7 +207,7 @@ BOOST_AUTO_TEST_CASE(CylinderSurfaceProperties) {
      Rotation:             colX = (1.000000, 0.000000, 0.000000)\n\
                            colY = (0.000000, 1.000000, 0.000000)\n\
                            colZ = (0.000000, 0.000000, 1.000000)\n\
-     Bounds  : Acts::CylinderBounds: (radius, averagePhi, halfPhiSector, halflengthInZ) = (1.0000000, 0.0000000, 3.1415927, 10.0000000)"));
+     Bounds  : Acts::CylinderBounds: (radius, halfLengthZ, halfPhiSector, averagePhi) = (1.0000000, 10.0000000, 3.1415927, 0.0000000)"));
 }
 
 BOOST_AUTO_TEST_CASE(EqualityOperators) {

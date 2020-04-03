@@ -20,15 +20,14 @@ namespace Acts {
 class InfiniteBounds : public SurfaceBounds {
  public:
   InfiniteBounds() = default;
+
   ~InfiniteBounds() override = default;
 
-  InfiniteBounds* clone() const final { return new InfiniteBounds(); }
-
   SurfaceBounds::BoundsType type() const final {
-    return SurfaceBounds::Boundless;
+    return SurfaceBounds::eBoundless;
   }
 
-  std::vector<TDD_real_t> valueStore() const final { return {}; }
+  std::vector<double> values() const final { return {}; }
 
   /// Method inside() returns true for any case
   ///

@@ -38,15 +38,16 @@ class LineSurfaceStub : public LineSurface {
   LineSurfaceStub(const LineSurfaceStub& ls)
       : GeometryObject(), LineSurface(ls) { /* nop */
   }
+
+  LineSurfaceStub& operator=(const LineSurfaceStub& ls) {
+    LineSurface::operator=(ls);
+    return *this;
+  }
+
   //
   LineSurfaceStub(const GeometryContext& gctx, const LineSurfaceStub& ls,
                   const Transform3D& t)
       : GeometryObject(), LineSurface(gctx, ls, t) { /* nop */
-  }
-  /// pure virtual functions of baseclass implemented here
-  std::shared_ptr<LineSurfaceStub> clone(const GeometryContext& /*gctx*/,
-                                         const Transform3D& /*unused*/) const {
-    return nullptr;
   }
 
   /// Return method for the Surface type to avoid dynamic casts
@@ -66,12 +67,6 @@ class LineSurfaceStub : public LineSurface {
   Polyhedron polyhedronRepresentation(const GeometryContext& /*gctx*/,
                                       size_t /*lseg*/) const final {
     return Polyhedron({}, {}, {});
-  }
-
- private:
-  Surface* clone_impl(const GeometryContext& /*gctx*/,
-                      const Transform3D& /*unused*/) const {
-    return nullptr;
   }
 };
 }  // namespace Test

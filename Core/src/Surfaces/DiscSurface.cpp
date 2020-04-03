@@ -102,7 +102,7 @@ const Acts::Vector2D Acts::DiscSurface::localPolarToLocalCartesian(
       dynamic_cast<const Acts::DiscTrapezoidBounds*>(&(bounds()));
   if (dtbo != nullptr) {
     double rMedium = dtbo->rCenter();
-    double phi = dtbo->averagePhi();
+    double phi = dtbo->get(DiscTrapezoidBounds::eAveragePhi);
 
     Vector2D polarCenter(rMedium, phi);
     Vector2D cartCenter = localPolarToCartesian(polarCenter);
@@ -135,16 +135,6 @@ std::string Acts::DiscSurface::name() const {
   return "Acts::DiscSurface";
 }
 
-std::shared_ptr<Acts::DiscSurface> Acts::DiscSurface::clone(
-    const GeometryContext& gctx, const Transform3D& shift) const {
-  return std::shared_ptr<DiscSurface>(this->clone_impl(gctx, shift));
-}
-
-Acts::DiscSurface* Acts::DiscSurface::clone_impl(
-    const GeometryContext& gctx, const Transform3D& shift) const {
-  return new DiscSurface(gctx, *this, shift);
-}
-
 const Acts::SurfaceBounds& Acts::DiscSurface::bounds() const {
   if (m_bounds) {
     return (*(m_bounds.get()));
@@ -173,7 +163,7 @@ Acts::Polyhedron Acts::DiscSurface::polyhedronRepresentation(
     }
     // These are convex shapes, use the helper method
     // For rings there's a sweet spot when this stops working
-    if (m_bounds->type() == SurfaceBounds::DiscTrapezoidal or toCenter or
+    if (m_bounds->type() == SurfaceBounds::eDiscTrapezoid or toCenter or
         not fullDisc) {
       // Transformt hem into the vertex frame
       wCenter *= 1. / vertices.size();

@@ -102,7 +102,8 @@ class AtlasStepper {
       // prepare the jacobian if we have a covariance
       if (pars.covariance()) {
         // copy the covariance matrix
-        covariance = new ActsSymMatrixD<BoundParsDim>(*pars.covariance());
+        covariance =
+            new ActsSymMatrixD<eBoundParametersSize>(*pars.covariance());
         covTransport = true;
         useJacobian = true;
         const auto transform = pars.referenceSurface().referenceFrame(
@@ -254,7 +255,7 @@ class AtlasStepper {
     /// X  ->P[0]  dX /   P[ 8]   P[16]   P[24]   P[32]   P[40]  P[48]
     /// Y  ->P[1]  dY /   P[ 9]   P[17]   P[25]   P[33]   P[41]  P[49]
     /// Z  ->P[2]  dZ /   P[10]   P[18]   P[26]   P[34]   P[42]  P[50]
-    /// T  ->P[3]  dT/	  P[11]   P[19]   P[27]   P[35]   P[43]  P[51]
+    /// T  ->P[3]  dT/    P[11]   P[19]   P[27]   P[35]   P[43]  P[51]
     /// Ax ->P[4]  dAx/   P[12]   P[20]   P[28]   P[36]   P[44]  P[52]
     /// Ay ->P[5]  dAy/   P[13]   P[21]   P[29]   P[37]   P[45]  P[53]
     /// Az ->P[6]  dAz/   P[14]   P[22]   P[30]   P[38]   P[46]  P[54]
@@ -262,11 +263,11 @@ class AtlasStepper {
     /// Cache: P[56] - P[59]
 
     // result
-    double parameters[BoundParsDim] = {0., 0., 0., 0., 0., 0.};
+    double parameters[eBoundParametersSize] = {0., 0., 0., 0., 0., 0.};
     const Covariance* covariance;
     Covariance cov = Covariance::Zero();
     bool covTransport = false;
-    double jacobian[BoundParsDim * BoundParsDim];
+    double jacobian[eBoundParametersSize * eBoundParametersSize];
 
     // accummulated path length cache
     double pathAccumulated = 0.;
@@ -501,7 +502,8 @@ class AtlasStepper {
     // prepare the jacobian if we have a covariance
     if (pars.covariance()) {
       // copy the covariance matrix
-      state.covariance = new ActsSymMatrixD<BoundParsDim>(*pars.covariance());
+      state.covariance =
+          new ActsSymMatrixD<eBoundParametersSize>(*pars.covariance());
       state.covTransport = true;
       state.useJacobian = true;
       const auto transform = pars.referenceFrame(state.geoContext);
@@ -800,8 +802,8 @@ class AtlasStepper {
     state.jacobian[34] = P[43];  // dT/dCM
     state.jacobian[35] = P[51];  // dT/dT
 
-    Eigen::Map<
-        Eigen::Matrix<double, BoundParsDim, BoundParsDim, Eigen::RowMajor>>
+    Eigen::Map<Eigen::Matrix<double, eBoundParametersSize, eBoundParametersSize,
+                             Eigen::RowMajor>>
         J(state.jacobian);
     state.cov = J * (*state.covariance) * J.transpose();
   }
@@ -1061,8 +1063,8 @@ class AtlasStepper {
     state.jacobian[34] = state.pVector[43];  // dT/dCM
     state.jacobian[35] = state.pVector[51];  // dT/dT
 
-    Eigen::Map<
-        Eigen::Matrix<double, BoundParsDim, BoundParsDim, Eigen::RowMajor>>
+    Eigen::Map<Eigen::Matrix<double, eBoundParametersSize, eBoundParametersSize,
+                             Eigen::RowMajor>>
         J(state.jacobian);
     state.cov = J * (*state.covariance) * J.transpose();
   }
@@ -1073,7 +1075,7 @@ class AtlasStepper {
   template <typename propagator_state_t>
   Result<double> step(propagator_state_t& state) const {
     // we use h for keeping the nominclature with the original atlas code
-    double h = state.stepping.stepSize;
+    auto& h = state.stepping.stepSize;
     bool Jac = state.stepping.useJacobian;
 
     double* R = &(state.stepping.pVector[0]);  // Coordinates
@@ -1087,6 +1089,7 @@ class AtlasStepper {
     // if new field is required get it
     if (state.stepping.newfield) {
       const Vector3D pos(R[0], R[1], R[2]);
+      // This is sd.B_first in EigenStepper
       f0 = getField(state.stepping, pos);
     } else {
       f0 = state.stepping.field;
@@ -1096,17 +1099,22 @@ class AtlasStepper {
     // if (std::abs(S) < m_cfg.helixStep) Helix = true;
 
     while (h != 0.) {
+      // PS2 is h/(2*momentum) in EigenStepper
       double S3 = (1. / 3.) * h, S4 = .25 * h, PS2 = Pi * h;
 
       // First point
       //
+      // H0 is (h/(2*momentum) * sd.B_first) in EigenStepper
       double H0[3] = {f0[0] * PS2, f0[1] * PS2, f0[2] * PS2};
+      // { A0, B0, C0 } is (h/2 * sd.k1) in EigenStepper
       double A0 = A[1] * H0[2] - A[2] * H0[1];
       double B0 = A[2] * H0[0] - A[0] * H0[2];
       double C0 = A[0] * H0[1] - A[1] * H0[0];
+      // { A2, B2, C2 } is (h/2 * sd.k1 + direction) in EigenStepper
       double A2 = A0 + A[0];
       double B2 = B0 + A[1];
       double C2 = C0 + A[2];
+      // { A1, B1, C1 } is (h/2 * sd.k1 + 2*direction) in EigenStepper
       double A1 = A2 + A[0];
       double B1 = B2 + A[1];
       double C1 = C2 + A[2];
@@ -1114,19 +1122,25 @@ class AtlasStepper {
       // Second point
       //
       if (!Helix) {
+        // This is pos1 in EigenStepper
         const Vector3D pos(R[0] + A1 * S4, R[1] + B1 * S4, R[2] + C1 * S4);
+        // This is sd.B_middle in EigenStepper
         f = getField(state.stepping, pos);
       } else {
         f = f0;
       }
 
+      // H1 is (h/(2*momentum) * sd.B_middle) in EigenStepper
       double H1[3] = {f[0] * PS2, f[1] * PS2, f[2] * PS2};
+      // { A3, B3, C3 } is (direction + h/2 * sd.k2) in EigenStepper
       double A3 = (A[0] + B2 * H1[2]) - C2 * H1[1];
       double B3 = (A[1] + C2 * H1[0]) - A2 * H1[2];
       double C3 = (A[2] + A2 * H1[1]) - B2 * H1[0];
+      // { A4, B4, C4 } is (direction + h/2 * sd.k3) in EigenStepper
       double A4 = (A[0] + B3 * H1[2]) - C3 * H1[1];
       double B4 = (A[1] + C3 * H1[0]) - A3 * H1[2];
       double C4 = (A[2] + A3 * H1[1]) - B3 * H1[0];
+      // { A5, B5, C5 } is (direction + h * sd.k3) in EigenStepper
       double A5 = 2. * A4 - A[0];
       double B5 = 2. * B4 - A[1];
       double C5 = 2. * C4 - A[2];
@@ -1134,24 +1148,31 @@ class AtlasStepper {
       // Last point
       //
       if (!Helix) {
+        // This is pos2 in EigenStepper
         const Vector3D pos(R[0] + h * A4, R[1] + h * B4, R[2] + h * C4);
+        // This is sd.B_last in Eigen stepper
         f = getField(state.stepping, pos);
       } else {
         f = f0;
       }
 
+      // H2 is (h/(2*momentum) * sd.B_last) in EigenStepper
       double H2[3] = {f[0] * PS2, f[1] * PS2, f[2] * PS2};
+      // { A6, B6, C6 } is (h/2 * sd.k4) in EigenStepper
       double A6 = B5 * H2[2] - C5 * H2[1];
       double B6 = C5 * H2[0] - A5 * H2[2];
       double C6 = A5 * H2[1] - B5 * H2[0];
 
       // Test approximation quality on give step and possible step reduction
       //
-      double EST = 2. * (std::abs((A1 + A6) - (A3 + A4)) +
-                         std::abs((B1 + B6) - (B3 + B4)) +
-                         std::abs((C1 + C6) - (C3 + C4)));
-      if (EST > 0.0001) {
-        h *= .5;
+      // This is (h2 * (sd.k1 - sd.k2 - sd.k3 + sd.k4).template lpNorm<1>())
+      // in EigenStepper
+      double EST =
+          2. * h *
+          (std::abs((A1 + A6) - (A3 + A4)) + std::abs((B1 + B6) - (B3 + B4)) +
+           std::abs((C1 + C6) - (C3 + C4)));
+      if (EST > state.options.tolerance) {
+        h = h * .5;
         //        dltm = 0.;
         continue;
       }

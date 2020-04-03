@@ -205,24 +205,35 @@ std::shared_ptr<Acts::Surface> Acts::LayerArrayCreator::createNavigationSurface(
   // navigation surface
   std::shared_ptr<Surface> navigationSurface;
   // for everything else than a cylinder it's a copy with shift
-  if (layerSurface.type() != Surface::Cylinder) {
+  if (layerSurface.type() == Surface::Plane) {
     // create a transform that does the shift
     Transform3D shift = Transform3D(Translation3D(translation));
-    navigationSurface = layerSurface.clone(gctx, shift);
-  } else {
+    const PlaneSurface* plane =
+        dynamic_cast<const PlaneSurface*>(&layerSurface);
+    navigationSurface = Surface::makeShared<PlaneSurface>(gctx, *plane, shift);
+  } else if (layerSurface.type() == Surface::Disc) {
+    // create a transform that does the shift
+    Transform3D shift = Transform3D(Translation3D(translation));
+    const DiscSurface* disc = dynamic_cast<const DiscSurface*>(&layerSurface);
+    navigationSurface = Surface::makeShared<DiscSurface>(gctx, *disc, shift);
+  } else if (layerSurface.type() == Surface::Cylinder) {
     // get the bounds
     const CylinderBounds* cBounds =
         dynamic_cast<const CylinderBounds*>(&(layerSurface.bounds()));
-    double navigationR = cBounds->r() + offset;
-    double halflengthZ = cBounds->halflengthZ();
+    double navigationR = cBounds->get(CylinderBounds::eR) + offset;
+    double halflengthZ = cBounds->get(CylinderBounds::eHalfLengthZ);
     // create the new layer surface
     std::shared_ptr<const Transform3D> navTrasform =
         (!layerSurface.transform(gctx).isApprox(s_idTransform))
             ? std::make_shared<const Transform3D>(layerSurface.transform(gctx))
             : nullptr;
     // new navigation layer
-    navigationSurface = Surface::makeShared<CylinderSurface>(
-        navTrasform, navigationR, halflengthZ);
+    auto cylinderBounds =
+        std::make_shared<CylinderBounds>(navigationR, halflengthZ);
+    navigationSurface =
+        Surface::makeShared<CylinderSurface>(navTrasform, cylinderBounds);
+  } else {
+    ACTS_WARNING("Not implemented.");
   }
   return navigationSurface;
 }

@@ -191,12 +191,6 @@ class SingleBoundTrackParameters : public SingleTrackParameters<ChargePolicy> {
     return *this;
   }
 
-  /// @brief clone - charged/netural
-  /// virtual constructor for type creation without casting
-  SingleBoundTrackParameters<ChargePolicy>* clone() const {
-    return new SingleBoundTrackParameters<ChargePolicy>(*this);
-  }
-
   /// @brief set method for parameter updates
   /// obviously only allowed on non-const objects
   //
@@ -205,7 +199,7 @@ class SingleBoundTrackParameters : public SingleTrackParameters<ChargePolicy> {
   template <ParID_t par>
   void set(const GeometryContext& gctx, ParValue_t newValue) {
     this->getParameterSet().template setParameter<par>(newValue);
-    this->updateGlobalCoordinates(gctx, typename par_type<par>::type());
+    this->updateGlobalCoordinates(gctx, BoundParameterType<par>());
   }
 
   /// @brief access method to the reference surface

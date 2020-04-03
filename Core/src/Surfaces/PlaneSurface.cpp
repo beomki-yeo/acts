@@ -101,16 +101,6 @@ std::string Acts::PlaneSurface::name() const {
   return "Acts::PlaneSurface";
 }
 
-std::shared_ptr<Acts::PlaneSurface> Acts::PlaneSurface::clone(
-    const GeometryContext& gctx, const Transform3D& shift) const {
-  return std::shared_ptr<PlaneSurface>(this->clone_impl(gctx, shift));
-}
-
-Acts::PlaneSurface* Acts::PlaneSurface::clone_impl(
-    const GeometryContext& gctx, const Transform3D& shift) const {
-  return new PlaneSurface(gctx, *this, shift);
-}
-
 const Acts::SurfaceBounds& Acts::PlaneSurface::bounds() const {
   if (m_bounds) {
     return (*m_bounds.get());
@@ -132,15 +122,14 @@ Acts::Polyhedron Acts::PlaneSurface::polyhedronRepresentation(
     for (const auto& v2D : vertices2D) {
       vertices.push_back(transform(gctx) * Vector3D(v2D.x(), v2D.y(), 0.));
     }
-    bool isEllipse = bounds().type() == SurfaceBounds::Ellipse;
+    bool isEllipse = bounds().type() == SurfaceBounds::eEllipse;
     bool innerExists = false, coversFull = false;
     if (isEllipse) {
-      auto vStore = bounds().valueStore();
-      innerExists = std::abs(vStore[EllipseBounds::BoundValues::bv_rMinX]) <
-                    s_onSurfaceTolerance;
-      coversFull =
-          std::abs(vStore[EllipseBounds::BoundValues::bv_halfPhiSector]) <
-          M_PI - s_onSurfaceTolerance;
+      auto vStore = bounds().values();
+      innerExists =
+          std::abs(vStore[EllipseBounds::eMaxR0]) < s_onSurfaceTolerance;
+      coversFull = std::abs(vStore[EllipseBounds::eHalfPhiSector]) <
+                   M_PI - s_onSurfaceTolerance;
     }
     // All of those can be described as convex
     // @todo same as for Discs: coversFull is not the right criterium

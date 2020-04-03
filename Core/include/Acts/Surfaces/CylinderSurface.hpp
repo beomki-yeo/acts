@@ -35,25 +35,6 @@ class CylinderSurface : public Surface {
   friend Surface;
 
  protected:
-  /// Constructor from Transform3D, radius and halflength
-  ///
-  /// @param htrans transform to position the surface, can be nullptr
-  /// @note if htrans == nullptr, the cylinder is positioned around (0.,0.,0.)
-  /// @param radius is the radius of the cylinder
-  /// @param hlength is the half length of the cylinder in z
-  CylinderSurface(std::shared_ptr<const Transform3D> htrans, double radius,
-                  double hlength);
-
-  /// Constructor from Transform3D, radius halfphi, and halflength
-  ///
-  /// @param htrans transform to position the surface, can be nullptr
-  /// @note if htrans == nullptr, the cylinder is positioned around (0.,0.,0.)
-  /// @param radius is the radius of the cylinder
-  /// @param hphi is the half length in phi of the cylinder
-  /// @param hlength is the half length of the cylinder in z
-  CylinderSurface(std::shared_ptr<const Transform3D> htrans, double radius,
-                  double hphi, double hlength);
-
   /// Constructor from DetectorElementBase: Element proxy
   ///
   /// @param cbounds are the provided cylinder bounds (shared)
@@ -62,6 +43,16 @@ class CylinderSurface : public Surface {
                   const DetectorElementBase& detelement);
 
   /// Constructor from Transform3D and CylinderBounds
+  ///
+  /// @param htrans transform to position the surface, can be nullptr
+  /// @param radius The radius of the cylinder
+  /// @param halfz The half length in z
+  /// @param halfphi The half opening angle
+  /// @param avphi The phi value from which the opening angle spans (both sides)
+  CylinderSurface(std::shared_ptr<const Transform3D> htrans, double radius,
+                  double halfz, double halfphi = M_PI, double avphi = 0.);
+
+  /// Constructor from Transform3D and CylinderBounds arguments
   ///
   /// @param htrans transform to position the surface, can be nullptr
   /// @note if htrans == nullptr, the cylinder is positioned around (0.,0.,0.)
@@ -94,13 +85,6 @@ class CylinderSurface : public Surface {
   ///
   /// @param other is the source cylinder for the copy
   CylinderSurface& operator=(const CylinderSurface& other);
-
-  /// Clone method into a concrete type of CylinderSurface with shift
-  ///
-  /// @param gctx The current geometry context object, e.g. alignment
-  /// @param shift applied to the surface
-  std::shared_ptr<CylinderSurface> clone(const GeometryContext& gctx,
-                                         const Transform3D& shift) const;
 
   /// The binning position method - is overloaded for r-type binning
   ///
@@ -239,13 +223,6 @@ class CylinderSurface : public Surface {
   std::shared_ptr<const CylinderBounds> m_bounds;  //!< bounds (shared)
 
  private:
-  /// Clone method implementation
-  ///
-  /// @param gctx The current geometry context object, e.g. alignment
-  /// @param shift applied to the surface
-  CylinderSurface* clone_impl(const GeometryContext& gctx,
-                              const Transform3D& shift) const override;
-
   /// Implementation of the intersection solver
   ///
   ///  <b>mathematical motivation:</b>

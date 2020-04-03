@@ -11,16 +11,21 @@
 template <typename propagator_t, typename propagator_options_t>
 Acts::Result<Acts::LinearizedTrack> Acts::
     HelicalTrackLinearizer<propagator_t, propagator_options_t>::linearizeTrack(
-        const BoundParameters& params, const SpacePointVector& linPoint) const {
+        const BoundParameters& params, const SpacePointVector& linPoint,
+        const Acts::GeometryContext& gctx,
+        const Acts::MagneticFieldContext& mctx) const {
   Vector3D linPointPos = VectorHelpers::position(linPoint);
 
   const std::shared_ptr<PerigeeSurface> perigeeSurface =
       Surface::makeShared<PerigeeSurface>(linPointPos);
 
+  // Create propagator options
+  propagator_options_t pOptions(gctx, mctx);
+  pOptions.direction = backward;
+
   const BoundParameters* endParams = nullptr;
   // Do the propagation to linPointPos
-  auto result =
-      m_cfg.propagator->propagate(params, *perigeeSurface, m_cfg.pOptions);
+  auto result = m_cfg.propagator->propagate(params, *perigeeSurface, pOptions);
   if (result.ok()) {
     endParams = (*result).endParameters.get();
 
@@ -126,7 +131,7 @@ Acts::Result<Acts::LinearizedTrack> Acts::
   positionJacobian(5, 3) = 1;
 
   // Fill momentum jacobian (E_k matrix), Eq. 5.37 in Ref(1)
-  ActsMatrixD<BoundParsDim, 3> momentumJacobian;
+  ActsMatrixD<eBoundParametersSize, 3> momentumJacobian;
   momentumJacobian.setZero();
 
   double R = X * cosPhiV + Y * sinPhiV;

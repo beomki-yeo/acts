@@ -129,7 +129,8 @@ void Acts::EigenStepper<B, E, A>::covarianceTransport(State& state,
   // Transport the covariance
   ActsRowVectorD<3> normVec(state.dir);
   const BoundRowVector sfactors =
-      normVec * state.jacToGlobal.template topLeftCorner<3, BoundParsDim>();
+      normVec *
+      state.jacToGlobal.template topLeftCorner<3, eBoundParametersSize>();
   // The full jacobian is ([to local] jacobian) * ([transport] jacobian)
   const Jacobian jacFull =
       jacToCurv * (state.jacToGlobal - state.derivative * sfactors);
@@ -224,7 +225,7 @@ Acts::Result<double> Acts::EigenStepper<B, E, A>::step(
   // size, going up to the point where it can return an estimate of the local
   // integration error. The results are stated in the local variables above,
   // allowing integration to continue once the error is deemed satisfactory
-  const auto tryRungeKuttaStep = [&](const double h) -> bool {
+  const auto tryRungeKuttaStep = [&](const ConstrainedStep& h) -> bool {
     // State the square and half of the step size
     h2 = h * h;
     half_h = h * 0.5;
@@ -258,7 +259,9 @@ Acts::Result<double> Acts::EigenStepper<B, E, A>::step(
         h2 * ((sd.k1 - sd.k2 - sd.k3 + sd.k4).template lpNorm<1>() +
               std::abs(sd.kQoP[0] - sd.kQoP[1] - sd.kQoP[2] + sd.kQoP[3])),
         1e-20);
-    return (error_estimate <= state.options.tolerance);
+    return (error_estimate <= state.options.tolerance) &&
+           ((h.currentType() != ConstrainedStep::accuracy) ||
+            (error_estimate >= state.options.tolerance / 10));
   };
 
   double stepSizeScaling = 1.;
