@@ -26,7 +26,7 @@ class InternalSeed {
                const InternalSpacePoint<SpacePoint>& s2, float z);
   InternalSeed& operator=(const InternalSeed& seed);
 
-  const std::array<const InternalSpacePoint<SpacePoint>*, 3> sp;  
+  const std::array<const InternalSpacePoint<SpacePoint>*, 3> sp;
   float z() const { return m_z; }
 
  protected:
@@ -53,5 +53,5 @@ inline InternalSeed<SpacePoint>::InternalSeed(
     : sp({&s0, &s1, &s2}) {
   m_z = z;
 }
-  
+
 }  // namespace Acts

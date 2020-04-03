@@ -9,17 +9,14 @@
 #pragma once
 
 #include "Acts/Utilities/Definitions.hpp"
-#include "Acts/Seeding/SeedFilter.hpp"
 
 namespace Acts {
 // forward declaration to avoid cyclic dependence
 template <typename T>
 class SeedFilter;
 
-class CuSeedFilter;
-  
 template <typename SpacePoint>
-struct SeedfinderConfig {  
+struct SeedfinderConfig {
   std::shared_ptr<Acts::SeedFilter<SpacePoint>> seedFilter;
 
   // Seed Cuts
@@ -98,8 +95,4 @@ struct SeedfinderConfig {
   float minHelixDiameter2 = 0;
   float pT2perRadius = 0;
 };
-  
 }  // namespace Acts
-
-
-

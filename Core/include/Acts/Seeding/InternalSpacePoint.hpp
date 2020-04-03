@@ -26,7 +26,7 @@ class InternalSpacePoint {
   InternalSpacePoint(const SpacePoint& sp, const Acts::Vector3D& globalPos,
                      const Acts::Vector2D& offsetXY,
                      const Acts::Vector2D& variance);
-  
+
   InternalSpacePoint(const InternalSpacePoint<SpacePoint>& sp);
   ~InternalSpacePoint() = default;
 
@@ -68,7 +68,7 @@ inline InternalSpacePoint<SpacePoint>::InternalSpacePoint(
   m_varianceR = variance.x();
   m_varianceZ = variance.y();
 }
-  
+
 /////////////////////////////////////////////////////////////////////////////////
 // Copy constructor
 /////////////////////////////////////////////////////////////////////////////////
@@ -84,5 +84,5 @@ inline InternalSpacePoint<SpacePoint>::InternalSpacePoint(
   m_varianceR = sp.m_varianceR;
   m_varianceZ = sp.m_varianceZ;
 }
-  
+
 }  // end of namespace Acts

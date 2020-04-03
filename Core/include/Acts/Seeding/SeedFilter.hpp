@@ -72,15 +72,14 @@ class SeedFilter {
   /// for all seeds with the same middle space point
   /// @return vector of all InternalSeeds that not filtered out
   virtual void filterSeeds_1SpFixed(
-	  std::vector<std::pair<
+      std::vector<std::pair<
           float, std::unique_ptr<const InternalSeed<external_spacepoint_t>>>>&
           seedsPerSpM,
       std::vector<Seed<external_spacepoint_t>>& outVec) const;
-  
+
  private:
   const SeedFilterConfig m_cfg;
   const IExperimentCuts<external_spacepoint_t>* m_experimentCuts;
 };
-  
 }  // namespace Acts
 #include "Acts/Seeding/SeedFilter.ipp"

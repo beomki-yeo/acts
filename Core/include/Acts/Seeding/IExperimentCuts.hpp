@@ -39,6 +39,7 @@ class IExperimentCuts {
       float weight, const InternalSpacePoint<SpacePoint>& bottom,
       const InternalSpacePoint<SpacePoint>& middle,
       const InternalSpacePoint<SpacePoint>& top) const = 0;
+
   /// @param seeds contains pairs of weight and seed created for one middle
   /// space
   /// point
@@ -49,7 +50,5 @@ class IExperimentCuts {
       std::vector<
           std::pair<float, std::unique_ptr<const InternalSeed<SpacePoint>>>>
           seeds) const = 0;
-
 };
-
 }  // namespace Acts

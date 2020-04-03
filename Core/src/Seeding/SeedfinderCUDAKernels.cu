@@ -263,30 +263,27 @@ __global__ void cuSearchTriplet(const int*   offset,
   float* invHelix = (float*)&impact[blockDim.x];
   unsigned char* isPassed = (unsigned char*)&invHelix[blockDim.x];  
   
-  int threadId = threadIdx.x;
-  int blockId  = blockIdx.x;
-
   float rM         = spMmat[(*nSpM)*3];
   float varianceRM = spMmat[(*nSpM)*4];
   float varianceZM = spMmat[(*nSpM)*5];
 
   // Zob values from CPU and CUDA are slightly different
   //float Zob        = circBmat[blockId+(*nSpB)*0];
-  float cotThetaB  = circBmat[blockId+(*nSpB)*1];
-  float iDeltaRB   = circBmat[blockId+(*nSpB)*2];
-  float ErB        = circBmat[blockId+(*nSpB)*3];
-  float Ub         = circBmat[blockId+(*nSpB)*4];
-  float Vb         = circBmat[blockId+(*nSpB)*5];
+  float cotThetaB  = circBmat[blockIdx.x+(*nSpB)*1];
+  float iDeltaRB   = circBmat[blockIdx.x+(*nSpB)*2];
+  float ErB        = circBmat[blockIdx.x+(*nSpB)*3];
+  float Ub         = circBmat[blockIdx.x+(*nSpB)*4];
+  float Vb         = circBmat[blockIdx.x+(*nSpB)*5];
   float iSinTheta2 = (1. + cotThetaB * cotThetaB);
   float scatteringInRegion2 = (*maxScatteringAngle2) * iSinTheta2;
   scatteringInRegion2 *= (*sigmaScattering) * (*sigmaScattering);
 
   //float Zot        = circTmat[threadId+(*nSpT)*0];
-  float cotThetaT  = circTmat[threadId+(*nSpT)*1];
-  float iDeltaRT   = circTmat[threadId+(*nSpT)*2];
-  float ErT        = circTmat[threadId+(*nSpT)*3];
-  float Ut         = circTmat[threadId+(*nSpT)*4];
-  float Vt         = circTmat[threadId+(*nSpT)*5];
+  float cotThetaT  = circTmat[threadIdx.x+(*nSpT)*1];
+  float iDeltaRT   = circTmat[threadIdx.x+(*nSpT)*2];
+  float ErT        = circTmat[threadIdx.x+(*nSpT)*3];
+  float Ut         = circTmat[threadIdx.x+(*nSpT)*4];
+  float Vt         = circTmat[threadIdx.x+(*nSpT)*5];
 
   // add errors of spB-spM and spM-spT pairs and add the correlation term
   // for errors on spM
@@ -298,7 +295,7 @@ __global__ void cuSearchTriplet(const int*   offset,
   float error;
   float dCotThetaMinusError2;
   
-  isPassed[threadId] = true;
+  isPassed[threadIdx.x] = true;
   
   // if the error is larger than the difference in theta, no need to
   // compare with scattering
@@ -314,14 +311,14 @@ __global__ void cuSearchTriplet(const int*   offset,
     // (scattering is always positive)
     
     if (dCotThetaMinusError2 > scatteringInRegion2) {
-      isPassed[threadId] = false;
+      isPassed[threadIdx.x] = false;
     }
   }
 
   // protects against division by 0
   float dU = Ut - Ub;
   if (dU == 0.) {
-    isPassed[threadId] = false;
+    isPassed[threadIdx.x] = false;
   }
 
   // A and B are evaluated as a function of the circumference parameters
@@ -333,7 +330,7 @@ __global__ void cuSearchTriplet(const int*   offset,
   // sqrt(S2)/B = 2 * helixradius
   // calculated radius must not be smaller than minimum radius
   if (S2 < B2 * (*minHelixDiameter2)) {
-    isPassed[threadId] = false;
+    isPassed[threadIdx.x] = false;
   }
   
   // 1/helixradius: (B/sqrt(S2))/2 (we leave everything squared)
@@ -348,7 +345,7 @@ __global__ void cuSearchTriplet(const int*   offset,
   if ((deltaCotTheta2 - error2 > 0) &&
       (dCotThetaMinusError2 >
        p2scatter * (*sigmaScattering) * (*sigmaScattering))) {
-    isPassed[threadId] = false;
+    isPassed[threadIdx.x] = false;
   }
   // A and B allow calculation of impact params in U/V plane with linear
   // function
@@ -358,24 +355,43 @@ __global__ void cuSearchTriplet(const int*   offset,
   invHelix[threadIdx.x] = B / sqrt(S2);
 
   if (impact[threadIdx.x] > (*impactMax)){
-    isPassed[threadId] = false;
+    isPassed[threadIdx.x] = false;
   }    
  
   __syncthreads();
-
+  // The following is an iteration to avoid atomic operation
+  // But do not use this as it slows down the kernel execution speed
+  /*
+  if (threadIdx.x==0){
+    for (int i_th=0; i_th<blockDim.x; i_th++){
+      if (isPassed[i_th] == true){
+	int pos = nTopPass[blockIdx.x];
+	impactparameters[pos+(*nTopPassLimit)*blockIdx.x] = impact[i_th];
+	curvatures      [pos+(*nTopPassLimit)*blockIdx.x] = invHelix[i_th];
+	tIndex          [pos+(*nTopPassLimit)*blockIdx.x] = i_th + (*offset);
+	nTopPass[blockIdx.x] +=1;
+	if( nTopPass[blockIdx.x] == *nTopPassLimit){
+	  break;
+	}
+      }
+    }
+  }
+  */
+  
   // The index will be different (and not deterministic) becuase of atomic operation
   // It will be resorted after kernel call
   if (isPassed[threadIdx.x] == true){
-    int pos = atomicAdd(&nTopPass[blockId],1);
+    int pos = atomicAdd(&nTopPass[blockIdx.x],1);
     if (pos<*nTopPassLimit){
-      impactparameters[pos+(*nTopPassLimit)*blockId] = impact[threadIdx.x];
-      curvatures      [pos+(*nTopPassLimit)*blockId] = invHelix[threadIdx.x];
-      tIndex          [pos+(*nTopPassLimit)*blockId] = threadIdx.x + (*offset);      
+      impactparameters[pos+(*nTopPassLimit)*blockIdx.x] = impact[threadIdx.x];
+      curvatures      [pos+(*nTopPassLimit)*blockIdx.x] = invHelix[threadIdx.x];
+      tIndex          [pos+(*nTopPassLimit)*blockIdx.x] = threadIdx.x + (*offset);      
     }
   }
-
+  
   __syncthreads();
   if (threadIdx.x == 0 && nTopPass[blockIdx.x] > *nTopPassLimit){
     nTopPass[blockIdx.x] = *nTopPassLimit;
   }
+  
 }

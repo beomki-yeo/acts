@@ -53,8 +53,8 @@ class Seedfinder {
   /**    @name Disallow default instantiation, copy, assignment */
   //@{
   Seedfinder() = delete;
-    Seedfinder(const Seedfinder<external_spacepoint_t, platform_t>&) = delete;
-    Seedfinder<external_spacepoint_t, platform_t >& operator=(
+  Seedfinder(const Seedfinder<external_spacepoint_t, platform_t>&) = delete;
+  Seedfinder<external_spacepoint_t, platform_t >& operator=(
   const Seedfinder<external_spacepoint_t, platform_t>&) = delete;
   //@}
 

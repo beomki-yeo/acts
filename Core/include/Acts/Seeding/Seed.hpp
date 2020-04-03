@@ -22,7 +22,7 @@ class Seed {
        float vertex);
   Seed(const Seed&) = default;
   Seed& operator=(const Seed&);
-  
+
   const std::vector<const SpacePoint*>& sp() const { return m_spacepoints; }
   double z() const { return m_zvertex; }
 
@@ -43,5 +43,5 @@ Seed<SpacePoint>::Seed(const SpacePoint& b, const SpacePoint& m,
   m_spacepoints.push_back(&m);
   m_spacepoints.push_back(&u);
 }
-    
+
 }  // namespace Acts

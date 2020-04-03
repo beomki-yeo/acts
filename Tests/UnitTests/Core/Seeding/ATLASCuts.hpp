@@ -57,7 +57,7 @@ float ATLASCuts<SpacePoint>::seedWeight(
   }
   return weight;
 }
-  
+
 template <typename SpacePoint>
 bool ATLASCuts<SpacePoint>::singleSeedCut(
     float weight, const InternalSpacePoint<SpacePoint>& b,
@@ -88,4 +88,3 @@ ATLASCuts<SpacePoint>::cutPerMiddleSP(
   return seeds;
 }
 }  // namespace Acts
-
