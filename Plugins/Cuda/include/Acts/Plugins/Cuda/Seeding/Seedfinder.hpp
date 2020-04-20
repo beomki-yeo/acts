@@ -11,8 +11,9 @@
 #include "Acts/Seeding/InternalSeed.hpp"
 #include "Acts/Seeding/InternalSpacePoint.hpp"
 #include "Acts/Seeding/SeedfinderConfig.hpp"
-#include "Acts/Seeding/SeedfinderCpuFunctions.hpp"
 #include "Acts/Seeding/SeedFilter.hpp"
+#include "Acts/Plugins/Cuda/Seeding/SeedfinderCudaKernels.cuh"
+#include "Acts/Plugins/Cuda/Cuda.h"
 
 #include <array>
 #include <list>
@@ -24,18 +25,14 @@
 #include <vector>
 
 namespace Acts{
-
-  template <typename external_spacepoint_t, typename platform_t = void * >
+  
+  template <typename external_spacepoint_t, Acts::Cuda >
 class Seedfinder {
   ///////////////////////////////////////////////////////////////////
   // Public methods:
   ///////////////////////////////////////////////////////////////////
-
- using Platform_t = platform_t;
     
  public:
-  /// The only constructor. Requires a config object.
-  /// @param config the configuration for the Seedfinder
 
   Seedfinder(Acts::SeedfinderConfig<external_spacepoint_t> config);
 
@@ -56,17 +53,16 @@ class Seedfinder {
   /// Ranges must return pointers.
   /// Ranges must be separate objects for each parallel call.
   /// @return vector in which all found seeds for this group are stored.
-  template <typename sp_range_t>
+  template< typename sp_range_t >
   std::vector<Seed<external_spacepoint_t> > createSeedsForGroup(sp_range_t bottomSPs, sp_range_t middleSPs, sp_range_t topSPs) const;
 
   std::tuple< double, double, double, double > getTimeMetric();
     
  private:
-
   Acts::SeedfinderConfig<external_spacepoint_t> m_config;
   mutable std::tuple< double, double, double, double > t_metric; // doublet search, transform coordinate, triplet search, wall time
 };
 
 }  // namespace Acts
 
-#include "Acts/Seeding/Seedfinder.ipp"
+#include "Acts/Plugins/Seeding/Seedfinder.ipp"

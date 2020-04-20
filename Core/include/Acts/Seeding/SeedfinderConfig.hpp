@@ -98,6 +98,6 @@ struct SeedfinderConfig {
   // cuda-related
   int maxBlockSize  = 1024;
   int nTrplPerSpBLimit = 5;
-  int offsetVecSize = 100; // This should be enough...  
+  int offsetVecSize = 100; // This should be enough
 };
 }  // namespace Acts

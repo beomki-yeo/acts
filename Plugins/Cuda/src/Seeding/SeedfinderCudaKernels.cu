@@ -6,11 +6,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "Acts/Seeding/SeedfinderCudaKernels.cuh"
-#include "Acts/Utilities/Platforms/CUDA/CudaUtils.cu"
-#include "Acts/Seeding/IExperimentCuts.hpp"
-#include "Acts/Seeding/SeedFilter.hpp"
-#include "Acts/Seeding/SeedfinderConfig.hpp"
+#include "Acts/Plugins/Cuda/Seeding/SeedfinderCudaKernels.cuh"
+#include "Acts/Plugins/Cuda/Cuda.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <iostream>
