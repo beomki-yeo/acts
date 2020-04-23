@@ -134,9 +134,9 @@ Seedfinder<external_spacepoint_t, Acts::Cuda>::createSeedsForGroup(
   CudaScalar<int> nSpBcompPerSpM_Max_cuda(new int(0));
   CudaScalar<int> nSpTcompPerSpM_Max_cuda(new int(0));
   CudaVector<int> nSpBcompPerSpM_cuda(nSpM);
-  nSpBcompPerSpM_cuda.Zeros();
+  nSpBcompPerSpM_cuda.zeros();
   CudaVector<int> nSpTcompPerSpM_cuda(nSpM);
-  nSpTcompPerSpM_cuda.Zeros();
+  nSpTcompPerSpM_cuda.zeros();
   CudaVector<int> McompIndex_cuda(nSpM);
   CudaMatrix<int> BcompIndex_cuda(nSpB, nSpM);
   CudaMatrix<int> TcompIndex_cuda(nSpT, nSpM);
@@ -214,7 +214,7 @@ Seedfinder<external_spacepoint_t, Acts::Cuda>::createSeedsForGroup(
   CudaScalar<int> nTrplPerSpMLimit_cuda(&nTrplPerSpMLimit);
 
   CudaVector<int> nTrplPerSpM_cuda(*nSpMcomp_cpu.Get());
-  nTrplPerSpM_cuda.Zeros();
+  nTrplPerSpM_cuda.zeros();
   CudaMatrix<int> TtrplIndex_cuda(nTrplPerSpMLimit, *nSpMcomp_cpu.Get());
   CudaMatrix<int> BtrplIndex_cuda(nTrplPerSpMLimit, *nSpMcomp_cpu.Get());
   CudaMatrix<float> curvatures_cuda(nTrplPerSpMLimit, *nSpMcomp_cpu.Get());
@@ -222,7 +222,7 @@ Seedfinder<external_spacepoint_t, Acts::Cuda>::createSeedsForGroup(
                                           *nSpMcomp_cpu.Get());
 
   CpuVector<int> nTrplPerSpM_cpu(*nSpMcomp_cpu.Get(), true);
-  nTrplPerSpM_cpu.Zeros();
+  nTrplPerSpM_cpu.zeros();
   CpuMatrix<int> TtrplIndex_cpu(nTrplPerSpMLimit, *nSpMcomp_cpu.Get(), true);
   CpuMatrix<int> BtrplIndex_cpu(nTrplPerSpMLimit, *nSpMcomp_cpu.Get(), true);
   CpuMatrix<float> curvatures_cpu(nTrplPerSpMLimit, *nSpMcomp_cpu.Get(), true);
@@ -267,18 +267,18 @@ Seedfinder<external_spacepoint_t, Acts::Cuda>::createSeedsForGroup(
         i_ts++;
       }
 
-      nTrplPerSpM_cpu.CopyD2H(nTrplPerSpM_cuda.Get(i_m), 1, i_m, &cuStream);
+      nTrplPerSpM_cpu.copyD2H(nTrplPerSpM_cuda.Get(i_m), 1, i_m, &cuStream);
 
-      TtrplIndex_cpu.CopyD2H(TtrplIndex_cuda.Get(0, i_m), nTrplPerSpMLimit,
+      TtrplIndex_cpu.copyD2H(TtrplIndex_cuda.Get(0, i_m), nTrplPerSpMLimit,
                              nTrplPerSpMLimit * i_m, &cuStream);
 
-      BtrplIndex_cpu.CopyD2H(BtrplIndex_cuda.Get(0, i_m), nTrplPerSpMLimit,
+      BtrplIndex_cpu.copyD2H(BtrplIndex_cuda.Get(0, i_m), nTrplPerSpMLimit,
                              nTrplPerSpMLimit * i_m, &cuStream);
 
-      curvatures_cpu.CopyD2H(curvatures_cuda.Get(0, i_m), nTrplPerSpMLimit,
+      curvatures_cpu.copyD2H(curvatures_cuda.Get(0, i_m), nTrplPerSpMLimit,
                              nTrplPerSpMLimit * i_m, &cuStream);
 
-      impactparameters_cpu.CopyD2H(impactparameters_cuda.Get(0, i_m),
+      impactparameters_cpu.copyD2H(impactparameters_cuda.Get(0, i_m),
                                    nTrplPerSpMLimit, nTrplPerSpMLimit * i_m,
                                    &cuStream);
     }
