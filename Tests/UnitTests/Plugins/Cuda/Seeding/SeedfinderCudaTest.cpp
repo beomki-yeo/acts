@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
   }
 
   std::string devName;
-  cudaErrChk(cudaSetDevice(deviceID));
+  ACTS_CUDA_ERROR_CHECK(cudaSetDevice(deviceID));
 
   std::ifstream f(file);
   if (!f.good()) {
@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
 
   // cuda
   cudaDeviceProp prop;
-  cudaErrChk(cudaGetDeviceProperties(&prop, deviceID));
+  ACTS_CUDA_ERROR_CHECK(cudaGetDeviceProperties(&prop, deviceID));
   printf("\n GPU Device %d: \"%s\" with compute capability %d.%d\n\n", deviceID,
          prop.name, prop.major, prop.minor);
   config.maxBlockSize = prop.maxThreadsPerBlock;

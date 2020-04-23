@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE( CUDAOBJ_TEST ){
   CudaVector<Eigen::Matrix<AFloat, vecDim, 1>> outMat1_cuda(bufSize);
  
   MatrixLoadStore1<AFloat, vecDim, 1><<< gridSize, blockSize >>>(inMat1_cuda.Get(),outMat1_cuda.Get());
-  cudaErrChk ( cudaGetLastError() );
+  ACTS_CUDA_ERROR_CHECK ( cudaGetLastError() );
     
   Eigen::Matrix<AFloat, vecDim, 1>* outMat1_cpu = outMat1_cuda.GetHost();
 
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE( CUDAOBJ_TEST ){
 
   MatrixLoadStore2<AFloat, vecDim, nVec><<< gridSize, blockSize >>>(inMat2_cuda.Get(),outMat2_cuda.Get());
 
-  cudaErrChk ( cudaGetLastError() );
+  ACTS_CUDA_ERROR_CHECK ( cudaGetLastError() );
     
   Eigen::Matrix<AFloat,vecDim,nVec>* outMat2_cpu = outMat2_cuda.GetHost();
   
