@@ -17,6 +17,9 @@
 
 namespace Acts{
 
+template <typename var_t>
+class CpuScalar;
+  
 template<typename var_t>
 class CudaScalar{
 
@@ -39,8 +42,8 @@ public:
     ACTS_CUDA_ERROR_CHECK( cudaFree(m_devPtr) );
   }
 
-  var_t* Get() { return m_devPtr; }
-
+  var_t* get() { return m_devPtr; }
+  
   void zeros() { cudaMemset(m_devPtr,0,sizeof(var_t)); }
   
   private:

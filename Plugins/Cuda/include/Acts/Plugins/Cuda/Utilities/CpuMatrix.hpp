@@ -20,9 +20,9 @@ class CudaMatrix;
 template <typename var_t>
 class CpuMatrix {
  public:
-  CpuMatrix() = default;
+  CpuMatrix() = delete;
   CpuMatrix(size_t nRows, size_t nCols, bool pinned = 0) {
-    setSize(nRows, nCols);
+    m_setSize(nRows, nCols);
     m_pinned = pinned;
     if (pinned == 0) {
       m_hostPtr = new var_t[m_size];
@@ -33,14 +33,14 @@ class CpuMatrix {
 
   CpuMatrix(size_t nRows, size_t nCols, CudaMatrix<var_t>* cuMat,
             bool pinned = 0) {
-    setSize(nRows, nCols);
+    m_setSize(nRows, nCols);
     m_pinned = pinned;
     if (pinned == 0) {
       m_hostPtr = new var_t[m_size];
     } else if (pinned == 1) {
       cudaMallocHost(&m_hostPtr, m_nRows * m_nCols * sizeof(var_t));
     }
-    cudaMemcpy(m_hostPtr, cuMat->Get(0, 0), m_size * sizeof(var_t),
+    cudaMemcpy(m_hostPtr, cuMat->get(0, 0), m_size * sizeof(var_t),
                cudaMemcpyDeviceToHost);
   }
 
@@ -52,18 +52,12 @@ class CpuMatrix {
     }
   }
   
-  void setSize(size_t row, size_t col) {
-    m_nRows = row;
-    m_nCols = col;
-    m_size = m_nRows * m_nCols;
-  }
-
-  var_t* Get(size_t row = 0, size_t col = 0) {
+  var_t* get(size_t row = 0, size_t col = 0) {
     size_t offset = row + col * m_nRows;
     return m_hostPtr + offset;
   }
 
-  void Set(size_t row, size_t col, var_t val) {
+  void set(size_t row, size_t col, var_t val) {
     size_t offset = row + col * m_nRows;
     m_hostPtr[offset] = val;
   }
@@ -86,6 +80,12 @@ class CpuMatrix {
   size_t m_nRows;
   size_t m_size;
   bool m_pinned;
+
+  void m_setSize(size_t row, size_t col) {
+    m_nRows = row;
+    m_nCols = col;
+    m_size = m_nRows * m_nCols;
+  }
 };
 
 }  // namespace Acts

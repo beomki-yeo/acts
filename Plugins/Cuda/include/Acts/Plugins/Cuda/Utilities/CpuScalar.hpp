@@ -18,7 +18,6 @@ class CudaScalar;
 template <typename var_t>
 class CpuScalar {
  public:
-  CpuScalar() = default;
   CpuScalar(bool pinned = 0) {
     m_pinned = pinned;
     if (pinned == 0) {
@@ -35,7 +34,7 @@ class CpuScalar {
     } else if (pinned == 1) {
       cudaMallocHost(&m_hostPtr, sizeof(var_t));
     }
-    cudaMemcpy(m_hostPtr, cuScalar->Get(), sizeof(var_t),
+    cudaMemcpy(m_hostPtr, cuScalar->get(), sizeof(var_t),
                cudaMemcpyDeviceToHost);
   }
 
@@ -47,7 +46,7 @@ class CpuScalar {
     }
   }
 
-  var_t* Get() { return m_hostPtr; }
+  var_t* get() { return m_hostPtr; }
 
   void Set(var_t val) { m_hostPtr[0] = val; }
 

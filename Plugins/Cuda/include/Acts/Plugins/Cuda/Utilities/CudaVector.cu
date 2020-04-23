@@ -17,11 +17,14 @@
 
 namespace Acts{
 
+template <typename var_t>
+class CpuVector;
+  
 template<typename var_t>
 class CudaVector{
 
 public:
-  
+  CudaVector()=delete;
   CudaVector(size_t size){ 
     m_size = size;
     ACTS_CUDA_ERROR_CHECK( cudaMalloc((var_t**)&m_devPtr, m_size*sizeof(var_t)) );
@@ -42,8 +45,8 @@ public:
   ~CudaVector(){ 
     cudaFree(m_devPtr); 
   }
-
-  var_t* Get(size_t offset=0) { return m_devPtr+offset; }
+  
+  var_t* get(size_t offset=0) { return m_devPtr+offset; }
 
   void copyH2D(var_t* vector, size_t len, size_t offset){
     ACTS_CUDA_ERROR_CHECK( cudaMemcpy(m_devPtr+offset, vector, len*sizeof(var_t), cudaMemcpyHostToDevice) );

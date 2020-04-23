@@ -17,56 +17,52 @@
 
 namespace Acts{
 
+template <typename var_t>
+class CpuMatrix;
+  
 template<typename var_t>
 class CudaMatrix{
 
 public:
-
-  CudaMatrix()=default;
+  CudaMatrix()=delete;
   CudaMatrix(size_t nRows, size_t nCols){
-    setSize(nRows,nCols);
+    m_setSize(nRows,nCols);
     ACTS_CUDA_ERROR_CHECK( cudaMalloc((var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(var_t)) );
   }
 
   CudaMatrix(size_t nRows, size_t nCols, var_t* mat){
-    setSize(nRows,nCols);
+    m_setSize(nRows,nCols);
     ACTS_CUDA_ERROR_CHECK( cudaMalloc((var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(var_t)) );
     copyH2D(mat, m_size, 0);
   }
   
   CudaMatrix(size_t nRows, size_t nCols, CpuMatrix<var_t>* mat){
-    setSize(nRows,nCols);
+    m_setSize(nRows,nCols);
     ACTS_CUDA_ERROR_CHECK( cudaMalloc((var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(var_t)) );
-    copyH2D(mat->Get(0,0), m_size, 0);
+    copyH2D(mat->get(0,0), m_size, 0);
   }
 
   CudaMatrix(size_t nRows, size_t nCols, var_t* mat, size_t len, size_t offset){
-    setSize(nRows,nCols);
+    m_setSize(nRows,nCols);
     ACTS_CUDA_ERROR_CHECK( cudaMalloc((var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(var_t)) );
     copyH2D(mat, len, offset);
   }
   
   CudaMatrix(size_t nRows, size_t nCols, CpuMatrix<var_t>* mat, size_t len, size_t offset){
-    setSize(nRows,nCols);
+    m_setSize(nRows,nCols);
     ACTS_CUDA_ERROR_CHECK( cudaMalloc((var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(var_t)) );
-    copyH2D(mat->Get(0,0),len,offset);
+    copyH2D(mat->get(0,0),len,offset);
   }
   
   ~CudaMatrix(){
     cudaFree(m_devPtr);
   }
 
-  void setSize(size_t row, size_t col){
-    m_nRows = row;
-    m_nCols = col;
-    m_size  = m_nRows*m_nCols; 
-  }
-    
-  var_t* Get(size_t row=0, size_t col=0){
+  var_t* get(size_t row=0, size_t col=0){
     int offset = row+col*m_nRows;
     return m_devPtr+offset;
   }
-
+  
   void copyH2D(var_t* matrix, size_t len, size_t offset=0){
     ACTS_CUDA_ERROR_CHECK( cudaMemcpy(m_devPtr+offset, matrix, len*sizeof(var_t), cudaMemcpyHostToDevice) );
   }
@@ -84,6 +80,12 @@ private:
   size_t m_nCols;
   size_t m_nRows;
   size_t m_size;
+  
+  void m_setSize(size_t row, size_t col){
+    m_nRows = row;
+    m_nCols = col;
+    m_size  = m_nRows*m_nCols; 
+  }
 };
 
 }

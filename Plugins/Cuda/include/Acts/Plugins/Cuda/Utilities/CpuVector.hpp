@@ -18,7 +18,7 @@ class CudaVector;
 template <typename var_t>
 class CpuVector {
  public:
-  CpuVector() = default;
+  CpuVector() = delete;
   CpuVector(size_t size, bool pinned = 0) {
     m_size = size;
     m_pinned = pinned;
@@ -37,7 +37,7 @@ class CpuVector {
     } else if (pinned == 1) {
       cudaMallocHost(&m_hostPtr, m_size * sizeof(var_t));
     }
-    cudaMemcpy(m_hostPtr, cuVec->Get(), m_size * sizeof(var_t),
+    cudaMemcpy(m_hostPtr, cuVec->get(), m_size * sizeof(var_t),
                cudaMemcpyDeviceToHost);
   }
 
@@ -49,9 +49,9 @@ class CpuVector {
     }
   }
 
-  var_t* Get(size_t offset = 0) { return m_hostPtr + offset; }
+  var_t* get(size_t offset = 0) { return m_hostPtr + offset; }
 
-  void Set(size_t offset, var_t val) { m_hostPtr[offset] = val; }
+  void set(size_t offset, var_t val) { m_hostPtr[offset] = val; }
 
   void copyD2H(var_t* devPtr, size_t len, size_t offset) {
     cudaMemcpy(m_hostPtr + offset, devPtr, len * sizeof(var_t),
