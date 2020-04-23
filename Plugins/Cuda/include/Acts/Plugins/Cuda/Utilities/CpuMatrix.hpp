@@ -51,16 +51,12 @@ class CpuMatrix {
       cudaFreeHost(m_hostPtr);
     }
   }
-
+  
   void SetSize(size_t row, size_t col) {
     m_nRows = row;
     m_nCols = col;
     m_size = m_nRows * m_nCols;
   }
-
-  size_t GetNCols() { return m_nCols; }
-  size_t GetNRows() { return m_nRows; }
-  size_t GetSize() { return m_size; }
 
   var_t* Get(size_t row = 0, size_t col = 0) {
     size_t offset = row + col * m_nRows;

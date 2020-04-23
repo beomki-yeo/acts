@@ -43,8 +43,6 @@ public:
     cudaFree(m_devPtr); 
   }
 
-  size_t GetSize(){return m_size;}
-  
   var_t* Get(size_t offset=0) { return m_devPtr+offset; }
 
   var_t* GetHost() {

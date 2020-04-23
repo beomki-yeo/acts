@@ -61,11 +61,7 @@ public:
     m_nCols = col;
     m_size  = m_nRows*m_nCols; 
   }
-  
-  size_t GetNCols(){ return m_nCols; }
-  size_t GetNRows(){ return m_nRows; }
-  size_t GetSize() { return m_size; }
-  
+    
   var_t* Get(size_t row=0, size_t col=0){
     int offset = row+col*m_nRows;
     return m_devPtr+offset;

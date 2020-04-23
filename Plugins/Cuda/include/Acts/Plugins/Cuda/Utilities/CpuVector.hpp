@@ -49,8 +49,6 @@ class CpuVector {
     }
   }
 
-  size_t GetSize() { return m_size; }
-
   var_t* Get(size_t offset = 0) { return m_hostPtr + offset; }
 
   void Set(size_t offset, var_t val) { m_hostPtr[offset] = val; }
