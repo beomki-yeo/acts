@@ -41,12 +41,6 @@ public:
 
   var_t* Get() { return m_devPtr; }
 
-  var_t GetHost() {
-    var_t* fHostPtr = new var_t[1];
-    ACTS_CUDA_ERROR_CHECK( cudaMemcpy(fHostPtr, m_devPtr, sizeof(var_t), cudaMemcpyDeviceToHost) );
-    return fHostPtr;
-  }
-
   void Zeros() { cudaMemset(m_devPtr,0,sizeof(var_t)); }
   
   private:

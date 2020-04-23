@@ -45,12 +45,6 @@ public:
 
   var_t* Get(size_t offset=0) { return m_devPtr+offset; }
 
-  var_t* GetHost() {
-    var_t* fHostPtr = new var_t[m_size];
-    ACTS_CUDA_ERROR_CHECK( cudaMemcpy(fHostPtr, m_devPtr, m_size*sizeof(var_t), cudaMemcpyDeviceToHost) );
-    return fHostPtr;
-  }
-
   void CopyH2D(var_t* vector, size_t len, size_t offset){
     ACTS_CUDA_ERROR_CHECK( cudaMemcpy(m_devPtr+offset, vector, len*sizeof(var_t), cudaMemcpyHostToDevice) );
   }
