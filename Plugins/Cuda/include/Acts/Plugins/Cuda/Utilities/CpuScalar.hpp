@@ -20,41 +20,41 @@ class CpuScalar {
  public:
   CpuScalar() = default;
   CpuScalar(bool pinned = 0) {
-    fPinned = pinned;
+    m_pinned = pinned;
     if (pinned == 0) {
-      fHostPtr = new Var_t[1];
+      m_hostPtr = new Var_t[1];
     } else if (pinned == 1) {
-      cudaMallocHost(&fHostPtr, sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, sizeof(Var_t));
     }
   }
 
   CpuScalar(CudaScalar<Var_t>* cuScalar, bool pinned = 0) {
-    fPinned = pinned;
+    m_pinned = pinned;
     if (pinned == 0) {
-      fHostPtr = new Var_t[1];
+      m_hostPtr = new Var_t[1];
     } else if (pinned == 1) {
-      cudaMallocHost(&fHostPtr, sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, sizeof(Var_t));
     }
-    cudaMemcpy(fHostPtr, cuScalar->Get(), sizeof(Var_t),
+    cudaMemcpy(m_hostPtr, cuScalar->Get(), sizeof(Var_t),
                cudaMemcpyDeviceToHost);
   }
 
   ~CpuScalar() {
-    if (!fPinned) {
-      delete fHostPtr;
-    } else if (fPinned) {
-      cudaFreeHost(fHostPtr);
+    if (!m_pinned) {
+      delete m_hostPtr;
+    } else if (m_pinned) {
+      cudaFreeHost(m_hostPtr);
     }
   }
 
-  Var_t* Get() { return fHostPtr; }
+  Var_t* Get() { return m_hostPtr; }
 
-  void Set(Var_t val) { fHostPtr[0] = val; }
+  void Set(Var_t val) { m_hostPtr[0] = val; }
 
  private:
-  Var_t* fHostPtr;
-  size_t fSize;
-  bool fPinned;
+  Var_t* m_hostPtr;
+  size_t m_size;
+  bool m_pinned;
 };
 
 }  // namespace Acts

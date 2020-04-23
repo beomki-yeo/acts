@@ -20,57 +20,57 @@ class CpuVector {
  public:
   CpuVector() = default;
   CpuVector(size_t size, bool pinned = 0) {
-    fSize = size;
-    fPinned = pinned;
+    m_size = size;
+    m_pinned = pinned;
     if (pinned == 0) {
-      fHostPtr = new Var_t[fSize];
+      m_hostPtr = new Var_t[m_size];
     } else if (pinned == 1) {
-      cudaMallocHost(&fHostPtr, fSize * sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, m_size * sizeof(Var_t));
     }
   }
 
   CpuVector(size_t size, CudaVector<Var_t>* cuVec, bool pinned = 0) {
-    fSize = size;
-    fPinned = pinned;
+    m_size = size;
+    m_pinned = pinned;
     if (pinned == 0) {
-      fHostPtr = new Var_t[fSize];
+      m_hostPtr = new Var_t[m_size];
     } else if (pinned == 1) {
-      cudaMallocHost(&fHostPtr, fSize * sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, m_size * sizeof(Var_t));
     }
-    cudaMemcpy(fHostPtr, cuVec->Get(), fSize * sizeof(Var_t),
+    cudaMemcpy(m_hostPtr, cuVec->Get(), m_size * sizeof(Var_t),
                cudaMemcpyDeviceToHost);
   }
 
   ~CpuVector() {
-    if (!fPinned) {
-      delete fHostPtr;
-    } else if (fPinned) {
-      cudaFreeHost(fHostPtr);
+    if (!m_pinned) {
+      delete m_hostPtr;
+    } else if (m_pinned) {
+      cudaFreeHost(m_hostPtr);
     }
   }
 
-  size_t GetSize() { return fSize; }
+  size_t GetSize() { return m_size; }
 
-  Var_t* Get(size_t offset = 0) { return fHostPtr + offset; }
+  Var_t* Get(size_t offset = 0) { return m_hostPtr + offset; }
 
-  void Set(size_t offset, Var_t val) { fHostPtr[offset] = val; }
+  void Set(size_t offset, Var_t val) { m_hostPtr[offset] = val; }
 
   void CopyD2H(Var_t* devPtr, size_t len, size_t offset) {
-    cudaMemcpy(fHostPtr + offset, devPtr, len * sizeof(Var_t),
+    cudaMemcpy(m_hostPtr + offset, devPtr, len * sizeof(Var_t),
                cudaMemcpyDeviceToHost);
   }
 
   void CopyD2H(Var_t* devPtr, size_t len, size_t offset, cudaStream_t* stream) {
-    cudaMemcpyAsync(fHostPtr + offset, devPtr, len * sizeof(Var_t),
+    cudaMemcpyAsync(m_hostPtr + offset, devPtr, len * sizeof(Var_t),
                     cudaMemcpyDeviceToHost, *stream);
   }
 
-  void Zeros() { memset(fHostPtr, 0, fSize * sizeof(Var_t)); }
+  void Zeros() { memset(m_hostPtr, 0, m_size * sizeof(Var_t)); }
 
  private:
-  Var_t* fHostPtr;
-  size_t fSize;
-  bool fPinned;
+  Var_t* m_hostPtr;
+  size_t m_size;
+  bool m_pinned;
 };
 
 }  // namespace Acts

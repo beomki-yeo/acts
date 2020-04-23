@@ -23,91 +23,91 @@ class CpuMatrix {
   CpuMatrix() = default;
   CpuMatrix(size_t nRows, size_t nCols, bool pinned = 0) {
     SetSize(nRows, nCols);
-    fPinned = pinned;
+    m_pinned = pinned;
     if (pinned == 0) {
-      fHostPtr = new Var_t[fSize];
+      m_hostPtr = new Var_t[m_size];
     } else if (pinned == 1) {
-      cudaMallocHost(&fHostPtr, fSize * sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, m_size * sizeof(Var_t));
     }
   }
 
   CpuMatrix(size_t nRows, size_t nCols, CudaMatrix<Var_t>* cuMat,
             bool pinned = 0) {
     SetSize(nRows, nCols);
-    fPinned = pinned;
+    m_pinned = pinned;
     if (pinned == 0) {
-      fHostPtr = new Var_t[fSize];
+      m_hostPtr = new Var_t[m_size];
     } else if (pinned == 1) {
-      cudaMallocHost(&fHostPtr, fNRows * fNCols * sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, m_nRows * m_nCols * sizeof(Var_t));
     }
-    cudaMemcpy(fHostPtr, cuMat->Get(0, 0), fSize * sizeof(Var_t),
+    cudaMemcpy(m_hostPtr, cuMat->Get(0, 0), m_size * sizeof(Var_t),
                cudaMemcpyDeviceToHost);
   }
 
   ~CpuMatrix() {
-    if (!fPinned) {
-      delete fHostPtr;
-    } else if (fPinned) {
-      cudaFreeHost(fHostPtr);
+    if (!m_pinned) {
+      delete m_hostPtr;
+    } else if (m_pinned) {
+      cudaFreeHost(m_hostPtr);
     }
   }
 
   void SetSize(size_t row, size_t col) {
-    fNRows = row;
-    fNCols = col;
-    fSize = fNRows * fNCols;
+    m_nRows = row;
+    m_nCols = col;
+    m_size = m_nRows * m_nCols;
   }
 
-  size_t GetNCols() { return fNCols; }
-  size_t GetNRows() { return fNRows; }
-  size_t GetSize() { return fSize; }
+  size_t GetNCols() { return m_nCols; }
+  size_t GetNRows() { return m_nRows; }
+  size_t GetSize() { return m_size; }
 
   Var_t* Get(size_t row = 0, size_t col = 0) {
-    size_t offset = row + col * fNRows;
-    return fHostPtr + offset;
+    size_t offset = row + col * m_nRows;
+    return m_hostPtr + offset;
   }
 
   void Set(size_t row, size_t col, Var_t val) {
-    size_t offset = row + col * fNRows;
-    fHostPtr[offset] = val;
+    size_t offset = row + col * m_nRows;
+    m_hostPtr[offset] = val;
   }
 
-  Var_t* GetColumn(size_t col) { return fHostPtr + col * fNRows; }
+  Var_t* GetColumn(size_t col) { return m_hostPtr + col * m_nRows; }
   Var_t* GetRow(size_t row) {
-    Var_t* ret = new Var_t[fNCols];
-    for (size_t i_c = 0; i_c < fNCols; i_c++)
-      ret[i_c] = fHostPtr[row + fNRows * i_c];
+    Var_t* ret = new Var_t[m_nCols];
+    for (size_t i_c = 0; i_c < m_nCols; i_c++)
+      ret[i_c] = m_hostPtr[row + m_nRows * i_c];
     return ret;
   }
 
   void SetRow(size_t row, Var_t* input) {
-    for (size_t i_c = 0; i_c < fNCols; i_c++) {
-      fHostPtr[row + fNRows * i_c] = input[i_c];
+    for (size_t i_c = 0; i_c < m_nCols; i_c++) {
+      m_hostPtr[row + m_nRows * i_c] = input[i_c];
     }
   }
 
   void SetColumn(size_t col, Var_t* input) {
-    fHostPtr[col * fNRows] = input[0];
+    m_hostPtr[col * m_nRows] = input[0];
   }
 
   void CopyD2H(Var_t* devPtr, size_t len, size_t offset) {
-    cudaMemcpy(fHostPtr + offset, devPtr, len * sizeof(Var_t),
+    cudaMemcpy(m_hostPtr + offset, devPtr, len * sizeof(Var_t),
                cudaMemcpyDeviceToHost);
   }
 
   void CopyD2H(Var_t* devPtr, size_t len, size_t offset, cudaStream_t* stream) {
-    cudaMemcpyAsync(fHostPtr + offset, devPtr, len * sizeof(Var_t),
+    cudaMemcpyAsync(m_hostPtr + offset, devPtr, len * sizeof(Var_t),
                     cudaMemcpyDeviceToHost, *stream);
   }
 
-  void Zeros() { memset(fHostPtr, 0, fSize * sizeof(Var_t)); }
+  void Zeros() { memset(m_hostPtr, 0, m_size * sizeof(Var_t)); }
 
  private:
-  Var_t* fHostPtr;
-  size_t fNCols;
-  size_t fNRows;
-  size_t fSize;
-  bool fPinned;
+  Var_t* m_hostPtr;
+  size_t m_nCols;
+  size_t m_nRows;
+  size_t m_size;
+  bool m_pinned;
 };
 
 }  // namespace Acts
