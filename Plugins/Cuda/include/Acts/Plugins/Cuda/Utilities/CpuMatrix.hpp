@@ -72,24 +72,6 @@ class CpuMatrix {
     m_hostPtr[offset] = val;
   }
 
-  var_t* GetColumn(size_t col) { return m_hostPtr + col * m_nRows; }
-  var_t* GetRow(size_t row) {
-    var_t* ret = new var_t[m_nCols];
-    for (size_t i_c = 0; i_c < m_nCols; i_c++)
-      ret[i_c] = m_hostPtr[row + m_nRows * i_c];
-    return ret;
-  }
-
-  void SetRow(size_t row, var_t* input) {
-    for (size_t i_c = 0; i_c < m_nCols; i_c++) {
-      m_hostPtr[row + m_nRows * i_c] = input[i_c];
-    }
-  }
-
-  void SetColumn(size_t col, var_t* input) {
-    m_hostPtr[col * m_nRows] = input[0];
-  }
-
   void CopyD2H(var_t* devPtr, size_t len, size_t offset) {
     cudaMemcpy(m_hostPtr + offset, devPtr, len * sizeof(var_t),
                cudaMemcpyDeviceToHost);
