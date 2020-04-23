@@ -25,30 +25,30 @@ public:
   CudaMatrix()=default;
   CudaMatrix(size_t nRows, size_t nCols){
     SetSize(nRows,nCols);
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
   }
 
   CudaMatrix(size_t nRows, size_t nCols, Var_t* mat){
     SetSize(nRows,nCols);
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
     CopyH2D(mat, m_size, 0);
   }
   
   CudaMatrix(size_t nRows, size_t nCols, CpuMatrix<Var_t>* mat){
     SetSize(nRows,nCols);
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
     CopyH2D(mat->Get(0,0), m_size, 0);
   }
 
   CudaMatrix(size_t nRows, size_t nCols, Var_t* mat, size_t len, size_t offset){
     SetSize(nRows,nCols);
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
     CopyH2D(mat, len, offset);
   }
   
   CudaMatrix(size_t nRows, size_t nCols, CpuMatrix<Var_t>* mat, size_t len, size_t offset){
     SetSize(nRows,nCols);
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, m_nRows*m_nCols*sizeof(Var_t)) );
     CopyH2D(mat->Get(0,0),len,offset);
   }
   
@@ -72,15 +72,15 @@ public:
   }
 
   void CopyH2D(Var_t* matrix, size_t len, size_t offset=0){
-    cudaErrChk( cudaMemcpy(m_devPtr+offset, matrix, len*sizeof(Var_t), cudaMemcpyHostToDevice) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemcpy(m_devPtr+offset, matrix, len*sizeof(Var_t), cudaMemcpyHostToDevice) );
   }
 
   void CopyH2D(const Var_t* matrix, size_t len, size_t offset=0){
-    cudaErrChk( cudaMemcpy(m_devPtr+offset, matrix, len*sizeof(Var_t), cudaMemcpyHostToDevice) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemcpy(m_devPtr+offset, matrix, len*sizeof(Var_t), cudaMemcpyHostToDevice) );
   }
   
   void Zeros(){
-    cudaErrChk( cudaMemset(m_devPtr, 0, m_size*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemset(m_devPtr, 0, m_size*sizeof(Var_t)) );
   }
   
 private:

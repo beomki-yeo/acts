@@ -22,28 +22,28 @@ class CudaScalar{
 
 public:
   CudaScalar(){
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, sizeof(Var_t)) );
   }
 
   CudaScalar(Var_t* scalar){
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, sizeof(Var_t)) );
-    cudaErrChk( cudaMemcpy(m_devPtr, scalar, sizeof(Var_t), cudaMemcpyHostToDevice) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemcpy(m_devPtr, scalar, sizeof(Var_t), cudaMemcpyHostToDevice) );
   }
 
   CudaScalar(const Var_t* scalar){
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, sizeof(Var_t)) );
-    cudaErrChk( cudaMemcpy(m_devPtr, scalar, sizeof(Var_t), cudaMemcpyHostToDevice) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemcpy(m_devPtr, scalar, sizeof(Var_t), cudaMemcpyHostToDevice) );
   }
   
   ~CudaScalar(){ 
-    cudaErrChk( cudaFree(m_devPtr) );
+    ACTS_CUDA_ERROR_CHECK( cudaFree(m_devPtr) );
   }
 
   Var_t* Get() { return m_devPtr; }
 
   Var_t GetHost() {
     Var_t* fHostPtr = new Var_t[1];
-    cudaErrChk( cudaMemcpy(fHostPtr, m_devPtr, sizeof(Var_t), cudaMemcpyDeviceToHost) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemcpy(fHostPtr, m_devPtr, sizeof(Var_t), cudaMemcpyDeviceToHost) );
     return fHostPtr;
   }
 

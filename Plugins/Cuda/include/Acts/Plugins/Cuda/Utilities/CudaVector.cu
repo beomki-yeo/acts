@@ -24,18 +24,18 @@ public:
   
   CudaVector(size_t size){ 
     m_size = size;
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, m_size*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, m_size*sizeof(Var_t)) );
   }
 
   CudaVector(size_t size, Var_t* vector){
     m_size = size;
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, m_size*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, m_size*sizeof(Var_t)) );
     CopyH2D(vector, m_size, 0);
   }
      
   CudaVector(size_t size, Var_t* vector, size_t len, size_t offset){ 
     m_size = size;
-    cudaErrChk( cudaMalloc((Var_t**)&m_devPtr, m_size*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMalloc((Var_t**)&m_devPtr, m_size*sizeof(Var_t)) );
     CopyH2D(vector, len, offset);
   }
   
@@ -49,19 +49,19 @@ public:
 
   Var_t* GetHost() {
     Var_t* fHostPtr = new Var_t[m_size];
-    cudaErrChk( cudaMemcpy(fHostPtr, m_devPtr, m_size*sizeof(Var_t), cudaMemcpyDeviceToHost) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemcpy(fHostPtr, m_devPtr, m_size*sizeof(Var_t), cudaMemcpyDeviceToHost) );
     return fHostPtr;
   }
 
   void CopyH2D(Var_t* vector, size_t len, size_t offset){
-    cudaErrChk( cudaMemcpy(m_devPtr+offset, vector, len*sizeof(Var_t), cudaMemcpyHostToDevice) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemcpy(m_devPtr+offset, vector, len*sizeof(Var_t), cudaMemcpyHostToDevice) );
   }
   void CopyH2D(Var_t* vector, size_t len, size_t offset, cudaStream_t* stream){
-    cudaErrChk( cudaMemcpyAsync(m_devPtr+offset, vector, len*sizeof(Var_t), cudaMemcpyHostToDevice, *stream) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemcpyAsync(m_devPtr+offset, vector, len*sizeof(Var_t), cudaMemcpyHostToDevice, *stream) );
   }
 
   void Zeros(){
-    cudaErrChk( cudaMemset(m_devPtr, 0, m_size*sizeof(Var_t)) );
+    ACTS_CUDA_ERROR_CHECK( cudaMemset(m_devPtr, 0, m_size*sizeof(Var_t)) );
   }
   
 private:
