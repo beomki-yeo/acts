@@ -14,10 +14,10 @@
 
 namespace Acts {
 
-template <typename Var_t>
+template <typename var_t>
 class CudaMatrix;
 
-template <typename Var_t>
+template <typename var_t>
 class CpuMatrix {
  public:
   CpuMatrix() = default;
@@ -25,22 +25,22 @@ class CpuMatrix {
     SetSize(nRows, nCols);
     m_pinned = pinned;
     if (pinned == 0) {
-      m_hostPtr = new Var_t[m_size];
+      m_hostPtr = new var_t[m_size];
     } else if (pinned == 1) {
-      cudaMallocHost(&m_hostPtr, m_size * sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, m_size * sizeof(var_t));
     }
   }
 
-  CpuMatrix(size_t nRows, size_t nCols, CudaMatrix<Var_t>* cuMat,
+  CpuMatrix(size_t nRows, size_t nCols, CudaMatrix<var_t>* cuMat,
             bool pinned = 0) {
     SetSize(nRows, nCols);
     m_pinned = pinned;
     if (pinned == 0) {
-      m_hostPtr = new Var_t[m_size];
+      m_hostPtr = new var_t[m_size];
     } else if (pinned == 1) {
-      cudaMallocHost(&m_hostPtr, m_nRows * m_nCols * sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, m_nRows * m_nCols * sizeof(var_t));
     }
-    cudaMemcpy(m_hostPtr, cuMat->Get(0, 0), m_size * sizeof(Var_t),
+    cudaMemcpy(m_hostPtr, cuMat->Get(0, 0), m_size * sizeof(var_t),
                cudaMemcpyDeviceToHost);
   }
 
@@ -62,48 +62,48 @@ class CpuMatrix {
   size_t GetNRows() { return m_nRows; }
   size_t GetSize() { return m_size; }
 
-  Var_t* Get(size_t row = 0, size_t col = 0) {
+  var_t* Get(size_t row = 0, size_t col = 0) {
     size_t offset = row + col * m_nRows;
     return m_hostPtr + offset;
   }
 
-  void Set(size_t row, size_t col, Var_t val) {
+  void Set(size_t row, size_t col, var_t val) {
     size_t offset = row + col * m_nRows;
     m_hostPtr[offset] = val;
   }
 
-  Var_t* GetColumn(size_t col) { return m_hostPtr + col * m_nRows; }
-  Var_t* GetRow(size_t row) {
-    Var_t* ret = new Var_t[m_nCols];
+  var_t* GetColumn(size_t col) { return m_hostPtr + col * m_nRows; }
+  var_t* GetRow(size_t row) {
+    var_t* ret = new var_t[m_nCols];
     for (size_t i_c = 0; i_c < m_nCols; i_c++)
       ret[i_c] = m_hostPtr[row + m_nRows * i_c];
     return ret;
   }
 
-  void SetRow(size_t row, Var_t* input) {
+  void SetRow(size_t row, var_t* input) {
     for (size_t i_c = 0; i_c < m_nCols; i_c++) {
       m_hostPtr[row + m_nRows * i_c] = input[i_c];
     }
   }
 
-  void SetColumn(size_t col, Var_t* input) {
+  void SetColumn(size_t col, var_t* input) {
     m_hostPtr[col * m_nRows] = input[0];
   }
 
-  void CopyD2H(Var_t* devPtr, size_t len, size_t offset) {
-    cudaMemcpy(m_hostPtr + offset, devPtr, len * sizeof(Var_t),
+  void CopyD2H(var_t* devPtr, size_t len, size_t offset) {
+    cudaMemcpy(m_hostPtr + offset, devPtr, len * sizeof(var_t),
                cudaMemcpyDeviceToHost);
   }
 
-  void CopyD2H(Var_t* devPtr, size_t len, size_t offset, cudaStream_t* stream) {
-    cudaMemcpyAsync(m_hostPtr + offset, devPtr, len * sizeof(Var_t),
+  void CopyD2H(var_t* devPtr, size_t len, size_t offset, cudaStream_t* stream) {
+    cudaMemcpyAsync(m_hostPtr + offset, devPtr, len * sizeof(var_t),
                     cudaMemcpyDeviceToHost, *stream);
   }
 
-  void Zeros() { memset(m_hostPtr, 0, m_size * sizeof(Var_t)); }
+  void Zeros() { memset(m_hostPtr, 0, m_size * sizeof(var_t)); }
 
  private:
-  Var_t* m_hostPtr;
+  var_t* m_hostPtr;
   size_t m_nCols;
   size_t m_nRows;
   size_t m_size;

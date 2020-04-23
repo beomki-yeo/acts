@@ -12,10 +12,10 @@
 
 namespace Acts {
 
-template <typename Var_t>
+template <typename var_t>
 class CudaVector;
 
-template <typename Var_t>
+template <typename var_t>
 class CpuVector {
  public:
   CpuVector() = default;
@@ -23,21 +23,21 @@ class CpuVector {
     m_size = size;
     m_pinned = pinned;
     if (pinned == 0) {
-      m_hostPtr = new Var_t[m_size];
+      m_hostPtr = new var_t[m_size];
     } else if (pinned == 1) {
-      cudaMallocHost(&m_hostPtr, m_size * sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, m_size * sizeof(var_t));
     }
   }
 
-  CpuVector(size_t size, CudaVector<Var_t>* cuVec, bool pinned = 0) {
+  CpuVector(size_t size, CudaVector<var_t>* cuVec, bool pinned = 0) {
     m_size = size;
     m_pinned = pinned;
     if (pinned == 0) {
-      m_hostPtr = new Var_t[m_size];
+      m_hostPtr = new var_t[m_size];
     } else if (pinned == 1) {
-      cudaMallocHost(&m_hostPtr, m_size * sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, m_size * sizeof(var_t));
     }
-    cudaMemcpy(m_hostPtr, cuVec->Get(), m_size * sizeof(Var_t),
+    cudaMemcpy(m_hostPtr, cuVec->Get(), m_size * sizeof(var_t),
                cudaMemcpyDeviceToHost);
   }
 
@@ -51,24 +51,24 @@ class CpuVector {
 
   size_t GetSize() { return m_size; }
 
-  Var_t* Get(size_t offset = 0) { return m_hostPtr + offset; }
+  var_t* Get(size_t offset = 0) { return m_hostPtr + offset; }
 
-  void Set(size_t offset, Var_t val) { m_hostPtr[offset] = val; }
+  void Set(size_t offset, var_t val) { m_hostPtr[offset] = val; }
 
-  void CopyD2H(Var_t* devPtr, size_t len, size_t offset) {
-    cudaMemcpy(m_hostPtr + offset, devPtr, len * sizeof(Var_t),
+  void CopyD2H(var_t* devPtr, size_t len, size_t offset) {
+    cudaMemcpy(m_hostPtr + offset, devPtr, len * sizeof(var_t),
                cudaMemcpyDeviceToHost);
   }
 
-  void CopyD2H(Var_t* devPtr, size_t len, size_t offset, cudaStream_t* stream) {
-    cudaMemcpyAsync(m_hostPtr + offset, devPtr, len * sizeof(Var_t),
+  void CopyD2H(var_t* devPtr, size_t len, size_t offset, cudaStream_t* stream) {
+    cudaMemcpyAsync(m_hostPtr + offset, devPtr, len * sizeof(var_t),
                     cudaMemcpyDeviceToHost, *stream);
   }
 
-  void Zeros() { memset(m_hostPtr, 0, m_size * sizeof(Var_t)); }
+  void Zeros() { memset(m_hostPtr, 0, m_size * sizeof(var_t)); }
 
  private:
-  Var_t* m_hostPtr;
+  var_t* m_hostPtr;
   size_t m_size;
   bool m_pinned;
 };

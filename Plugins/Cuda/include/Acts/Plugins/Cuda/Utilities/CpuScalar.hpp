@@ -12,30 +12,30 @@
 
 namespace Acts {
 
-template <typename Var_t>
+template <typename var_t>
 class CudaScalar;
 
-template <typename Var_t>
+template <typename var_t>
 class CpuScalar {
  public:
   CpuScalar() = default;
   CpuScalar(bool pinned = 0) {
     m_pinned = pinned;
     if (pinned == 0) {
-      m_hostPtr = new Var_t[1];
+      m_hostPtr = new var_t[1];
     } else if (pinned == 1) {
-      cudaMallocHost(&m_hostPtr, sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, sizeof(var_t));
     }
   }
 
-  CpuScalar(CudaScalar<Var_t>* cuScalar, bool pinned = 0) {
+  CpuScalar(CudaScalar<var_t>* cuScalar, bool pinned = 0) {
     m_pinned = pinned;
     if (pinned == 0) {
-      m_hostPtr = new Var_t[1];
+      m_hostPtr = new var_t[1];
     } else if (pinned == 1) {
-      cudaMallocHost(&m_hostPtr, sizeof(Var_t));
+      cudaMallocHost(&m_hostPtr, sizeof(var_t));
     }
-    cudaMemcpy(m_hostPtr, cuScalar->Get(), sizeof(Var_t),
+    cudaMemcpy(m_hostPtr, cuScalar->Get(), sizeof(var_t),
                cudaMemcpyDeviceToHost);
   }
 
@@ -47,12 +47,12 @@ class CpuScalar {
     }
   }
 
-  Var_t* Get() { return m_hostPtr; }
+  var_t* Get() { return m_hostPtr; }
 
-  void Set(Var_t val) { m_hostPtr[0] = val; }
+  void Set(var_t val) { m_hostPtr[0] = val; }
 
  private:
-  Var_t* m_hostPtr;
+  var_t* m_hostPtr;
   size_t m_size;
   bool m_pinned;
 };
