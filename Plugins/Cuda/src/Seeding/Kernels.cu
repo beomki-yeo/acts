@@ -54,12 +54,15 @@ __device__ void sp2circle(bool  isBottom,
 			  const float* spB,
 			  float* circB);
 
-__global__ void cuSearchTriplet(const int*   offset,
+__global__ void cuSearchTriplet(//const int*   offset,
+				const int*   nSpTcompPerSpM,
 				const int*   nSpMcomp,
 				const float* spMcompMat,
 				const int*   nSpBcompPerSpM_Max,
+				const int*   BcompIndex,
 				const float* circBcompMatPerSpM,
 				const int*   nSpTcompPerSpM_Max,
+				const int*   TcompIndex,
 				const float* spTcompMatPerSpM,
 				const float* circTcompMatPerSpM,
 				const float* maxScatteringAngle2,
@@ -69,12 +72,16 @@ __global__ void cuSearchTriplet(const int*   offset,
 				const float* impactMax,
 				const int*   nTrplPerSpMLimit,
 				const float* deltaInvHelixDiameter,
-				const float* impactWeightFactor,				
+				const float* impactWeightFactor,
+				const float* deltaRMin,
+				const float* compatSeedWeight,
+				const size_t* compatSeedLimit,
 				int* nTrplPerSpM,
-				int* tIndex,
-				int* bIndex,
+				int* TtrplIndex,
+				int* BtrplIndex,
 				float* curvatures,
-				float* impactparameters				
+				float* impactparameters,
+				Triplet* TripletsPerSpM
 				);
 
 namespace Acts{
@@ -163,12 +170,16 @@ namespace Acts{
   }
     
   void searchTriplet(const dim3 grid, const dim3 block,
-		     const int*   offset,
+		     //const int*   offset,
+		     const int*   nSpTcompPerSpM_cpu, // need to use USM
+		     const int*   nSpTcompPerSpM_cuda,		     
 		     const int*   nSpMcomp,
 		     const float* spMcompMat,
 		     const int*   nSpBcompPerSpM_Max,
+		     const int*   BcompIndex,
 		     const float* circBcompMatPerSpM,
 		     const int*   nSpTcompPerSpM_Max,
+		     const int*   TcompIndex,
 		     const float* spTcompMatPerSpM,
 		     const float* circTcompMatPerSpM,
 		     const float* maxScatteringAngle2,
@@ -178,36 +189,51 @@ namespace Acts{
 		     const float* impactMax,
 		     const int*   nTrplPerSpMLimit,
 		     const float* deltaInvHelixDiameter,
-		     const float* impactWeightFactor,		     
+		     const float* impactWeightFactor,
+		     const float* deltaRMin,
+		     const float* compatSeedWeight,
+		     const size_t* compatSeedLimit_cpu,	 // need to use USM
+		     const size_t* compatSeedLimit_cuda,		    
 		     int* nTrplPerSpM,
-		     int* tIndex,
-		     int* bIndex,
+		     int* TtrplIndex,
+		     int* BtrplIndex,
 		     float* curvatures,
-		     float* impactparameters,				
+		     float* impactparameters,
+		     Triplet* TripletsPerSpM,		     
 		     cudaStream_t* stream
-		     ){
-  int sharedMemSize = (sizeof(int)+3*sizeof(float))*block.x;    
+		     ){    
+    int sharedMemSize = (2*sizeof(int)+2*sizeof(float))*(*nSpTcompPerSpM_cpu);
     
-  cuSearchTriplet<<< grid, block, 
-      sharedMemSize, *stream >>>(offset,
+    sharedMemSize += sizeof(Triplet)*50; // 50 should be given appropriately...
+    sharedMemSize += sizeof(float)*(*compatSeedLimit_cpu); 
+    sharedMemSize += sizeof(int);
+    cuSearchTriplet<<< grid, block, 
+      sharedMemSize, *stream >>>(//offset,
+				 nSpTcompPerSpM_cuda,
 				 nSpMcomp,
 				 spMcompMat,
 				 nSpBcompPerSpM_Max,
+				 BcompIndex,
 				 circBcompMatPerSpM,
 				 nSpTcompPerSpM_Max,
+				 TcompIndex,
 				 spTcompMatPerSpM,
 				 circTcompMatPerSpM,			       
 				 maxScatteringAngle2,sigmaScattering,
 				 minHelixDiameter2, pT2perRadius,
 				 impactMax, nTrplPerSpMLimit,
 				 deltaInvHelixDiameter,
-				 impactWeightFactor,				 
+				 impactWeightFactor,
+				 deltaRMin,
+				 compatSeedWeight,
+				 compatSeedLimit_cuda,
 				 nTrplPerSpM,
-				 tIndex, bIndex,
+				 TtrplIndex, BtrplIndex,
 				 curvatures,
-				 impactparameters
+				 impactparameters,
+				 TripletsPerSpM
 				 );
-  ACTS_CUDA_ERROR_CHECK( cudaGetLastError() );
+    ACTS_CUDA_ERROR_CHECK( cudaGetLastError() );
   }
   
 }
@@ -242,13 +268,11 @@ __global__ void cuSearchDoublet(const int* nSpM, const float* spMmat,
     *isMcompat = false;
   }
   __syncthreads();
-
   
   float rM = spMmat[blockIdx.x +(*nSpM)*3];
   float zM = spMmat[blockIdx.x +(*nSpM)*2];
 
-  int offset;
-  offset = 0;
+  int offset(0);
   while (offset < max(*nSpB, *nSpT) ){
     
     isBcompat[threadIdx.x] = true;
@@ -383,7 +407,7 @@ __global__ void cuTransformCoordinate(const int*   nSpM,
   
   __syncthreads();
 
-  int offset = 0;
+  int offset(0);
   while (offset < max(*nSpBcompPerSpM_Max, *nSpTcompPerSpM_Max) ){
   
   if (threadIdx.x+offset < *nSpBcompPerSpM_Max){
@@ -493,14 +517,18 @@ __device__ void sp2circle( bool isBottom,
   circB[5] = V;   
 }
 
-__global__ void cuSearchTriplet(const int*   offset,
+__global__ void cuSearchTriplet(//const int*   offset,
+				const int*   nSpTcompPerSpM,
 				const int*   nSpMcomp,
 				const float* spMcompMat,
 				const int*   nSpBcompPerSpM_Max,
-				const float* circBcompMatPerSpM,
+				const int*   BcompIndex,
+				const float* circBcompMatPerSpM,				
 				const int*   nSpTcompPerSpM_Max,
+				const int*   TcompIndex,
 				const float* spTcompMatPerSpM,
 				const float* circTcompMatPerSpM,
+				// config
 				const float* maxScatteringAngle2,
 				const float* sigmaScattering,
 				const float* minHelixDiameter2,
@@ -508,21 +536,38 @@ __global__ void cuSearchTriplet(const int*   offset,
 				const float* impactMax,
 				const int*   nTrplPerSpMLimit,
 				const float* deltaInvHelixDiameter,
-				const float* impactWeightFactor,				
+				const float* impactWeightFactor,
+				const float* deltaRMin,
+				const float* compatSeedWeight,
+				const size_t* compatSeedLimit,
+				// triplet output
 				int* nTrplPerSpM,
-				int* tIndex,
-				int* bIndex,
+				int* TtrplIndex,
+				int* BtrplIndex,
 				float* curvatures,
-				float* impactparameters			    				
+				float* impactparameters,
+				Triplet* TripletsPerSpM
 				){
 
-  extern __shared__ float shared[];
+  //printf("%d \n", *nSpMcomp);
   
-  float* impact    = (float*)shared;
-  float* invHelix  = (float*)&impact[blockDim.x];
-  float* topRadius = (float*)&invHelix[blockDim.x];
-  int*  isPassed   = (int*)&topRadius[blockDim.x];  
+  //extern __shared__ float shared[];
+  extern __shared__ Triplet sh[];
+
+  Triplet* triplets  = (Triplet*)sh;
+  float* compatibleSeedR = (float*)&triplets[50];
+  int*   nTrplPerSpB = (int*)&compatibleSeedR[*compatSeedLimit];
   
+  //float* impact      = (float*)&compatibleSeedR[*compatSeedLimit];
+  //float* invHelix    = (float*)&impact[*nSpTcompPerSpM];
+  //int*   isPassed    = (int*)&invHelix[*nSpTcompPerSpM];
+  //int*   tIndex      = (int*)&isPassed[*nSpTcompPerSpM];  
+  //int*   nTrplPerSpB = (int*)&tIndex[*nSpTcompPerSpM];
+
+  if (threadIdx.x==0) {
+    *nTrplPerSpB=0;
+  }
+
   float rM         = spMcompMat[(*nSpMcomp)*3];
   float varianceRM = spMcompMat[(*nSpMcomp)*4];
   float varianceZM = spMcompMat[(*nSpMcomp)*5];
@@ -536,131 +581,240 @@ __global__ void cuSearchTriplet(const int*   offset,
   float iSinTheta2 = (1. + cotThetaB * cotThetaB);
   float scatteringInRegion2 = (*maxScatteringAngle2) * iSinTheta2;
   scatteringInRegion2 *= (*sigmaScattering) * (*sigmaScattering);
-
-  //float Zot        = circTcompMatPerSpM[threadId+(*nSpTcompPerSpM)*0];
-  float cotThetaT  = circTcompMatPerSpM[threadIdx.x+(*offset)+(*nSpTcompPerSpM_Max)*1];
-  float iDeltaRT   = circTcompMatPerSpM[threadIdx.x+(*offset)+(*nSpTcompPerSpM_Max)*2];
-  float ErT        = circTcompMatPerSpM[threadIdx.x+(*offset)+(*nSpTcompPerSpM_Max)*3];
-  float Ut         = circTcompMatPerSpM[threadIdx.x+(*offset)+(*nSpTcompPerSpM_Max)*4];
-  float Vt         = circTcompMatPerSpM[threadIdx.x+(*offset)+(*nSpTcompPerSpM_Max)*5];
-
-  // add errors of spB-spM and spM-spT pairs and add the correlation term
-  // for errors on spM
-  float error2 = ErT + ErB +
-    2 * (cotThetaB * cotThetaT * varianceRM + varianceZM) * iDeltaRB * iDeltaRT;
   
-  float deltaCotTheta = cotThetaB - cotThetaT;
-  float deltaCotTheta2 = deltaCotTheta * deltaCotTheta;
-  float error;
-  float dCotThetaMinusError2;
+  int offset(0);
   
-  isPassed[threadIdx.x] = true;
-  
-  // if the error is larger than the difference in theta, no need to
-  // compare with scattering
-  if (deltaCotTheta2 - error2 > 0) {
-    deltaCotTheta = fabsf(deltaCotTheta);
-    // if deltaTheta larger than the scattering for the lower pT cut, skip
-    error = sqrtf(error2);
-    dCotThetaMinusError2 =
-      deltaCotTheta2 + error2 - 2 * deltaCotTheta * error;
-    // avoid taking root of scatteringInRegion
-    // if left side of ">" is positive, both sides of unequality can be
-    // squared
-    // (scattering is always positive)
+  while (offset < *nSpTcompPerSpM){    
+    if (threadIdx.x+offset >= *nSpTcompPerSpM) return;
+    bool isPassed(1);
     
-    if (dCotThetaMinusError2 > scatteringInRegion2) {
-      isPassed[threadIdx.x] = false;
+    //isPassed[threadIdx.x+offset] = 0;
+    
+    //float Zot        = circTcompMatPerSpM[threadId+(*nSpTcompPerSpM)*0];
+    float cotThetaT  = circTcompMatPerSpM[threadIdx.x+offset+(*nSpTcompPerSpM_Max)*1];
+    float iDeltaRT   = circTcompMatPerSpM[threadIdx.x+offset+(*nSpTcompPerSpM_Max)*2];
+    float ErT        = circTcompMatPerSpM[threadIdx.x+offset+(*nSpTcompPerSpM_Max)*3];
+    float Ut         = circTcompMatPerSpM[threadIdx.x+offset+(*nSpTcompPerSpM_Max)*4];
+    float Vt         = circTcompMatPerSpM[threadIdx.x+offset+(*nSpTcompPerSpM_Max)*5];
+    
+    // add errors of spB-spM and spM-spT pairs and add the correlation term
+    // for errors on spM
+    float error2 = ErT + ErB +
+      2 * (cotThetaB * cotThetaT * varianceRM + varianceZM) * iDeltaRB * iDeltaRT;
+    
+    float deltaCotTheta = cotThetaB - cotThetaT;
+    float deltaCotTheta2 = deltaCotTheta * deltaCotTheta;
+    float error;
+    float dCotThetaMinusError2;
+    
+    //isPassed[threadIdx.x+offset] = 1;
+    
+    // if the error is larger than the difference in theta, no need to
+    // compare with scattering
+    if (deltaCotTheta2 - error2 > 0) {
+      deltaCotTheta = fabsf(deltaCotTheta);
+      // if deltaTheta larger than the scattering for the lower pT cut, skip
+      error = sqrtf(error2);
+      dCotThetaMinusError2 =
+	deltaCotTheta2 + error2 - 2 * deltaCotTheta * error;
+      // avoid taking root of scatteringInRegion
+      // if left side of ">" is positive, both sides of unequality can be
+      // squared
+      // (scattering is always positive)
+      
+      if (dCotThetaMinusError2 > scatteringInRegion2) {
+	//isPassed[threadIdx.x+offset] = 0;
+	isPassed = 0;
+      }
+    }
+    
+    // protects against division by 0
+    float dU = Ut - Ub;
+    if (dU == 0.) {
+      //isPassed[threadIdx.x+offset] = 0;
+      isPassed = 0;
+    }
+    
+    // A and B are evaluated as a function of the circumference parameters
+    // x_0 and y_0
+    float A = (Vt - Vb) / dU;
+    float S2 = 1. + A * A;
+    float B = Vb - A * Ub;
+    float B2 = B * B;
+    // sqrtf(S2)/B = 2 * helixradius
+    // calculated radius must not be smaller than minimum radius
+    if (S2 < B2 * (*minHelixDiameter2)) {
+      //isPassed[threadIdx.x+offset] = 0;
+      isPassed = 0;
+    }
+    
+    // 1/helixradius: (B/sqrtf(S2))/2 (we leave everything squared)
+    float iHelixDiameter2 = B2 / S2;
+    // calculate scattering for p(T) calculated from seed curvature
+    float pT2scatter = 4 * iHelixDiameter2 * (*pT2perRadius);
+    // TODO: include upper pT limit for scatter calc
+    // convert p(T) to p scaling by sin^2(theta) AND scale by 1/sin^4(theta)
+    // from rad to deltaCotTheta
+    float p2scatter = pT2scatter * iSinTheta2;
+    // if deltaTheta larger than allowed scattering for calculated pT, skip
+    if ((deltaCotTheta2 - error2 > 0) &&
+	(dCotThetaMinusError2 >
+	 p2scatter * (*sigmaScattering) * (*sigmaScattering))) {
+      //isPassed[threadIdx.x+offset] = 0;
+      isPassed = 0;
+    }
+    // A and B allow calculation of impact params in U/V plane with linear
+    // function
+    // (in contrast to having to solve a quadratic function in x/y plane)
+    /*
+    impact[threadIdx.x+offset] = fabsf((A - B * rM) * rM);
+    invHelix[threadIdx.x+offset] = B / sqrtf(S2);
+    if (impact[threadIdx.x+offset] > (*impactMax)){
+      isPassed[threadIdx.x+offset] = 0;
+    }    
+    */
+    float impact = fabsf((A - B * rM) * rM);
+    float invHelix = B / sqrtf(S2);
+    if (impact > (*impactMax)){
+      //isPassed[threadIdx.x+offset] = 0;
+      isPassed = 0;
+    }     
+    
+    __syncthreads();
+    
+    // The index will be different (and not deterministic) becuase of atomic operation
+    // It will be resorted after kernel call
+    //if (isPassed[threadIdx.x+offset] == 1){
+    if (isPassed == 1){
+      int tPos = atomicAdd(nTrplPerSpB,1);
+
+      /*
+      int pos = atomicAdd(nTrplPerSpM,1);      
+      if (pos<*nTrplPerSpMLimit){
+	impactparameters[pos] = impact[threadIdx.x+offset];
+	curvatures[pos] = invHelix[threadIdx.x+offset];
+	TtrplIndex[pos] = threadIdx.x + offset;
+	BtrplIndex[pos] = blockIdx.x;
+      }
+
+      tIndex[tPos] = TcompIndex[threadIdx.x + offset];
+            
+      triplets[tPos].bIndex = BcompIndex[blockIdx.x];
+      triplets[tPos].tIndex = TcompIndex[threadIdx.x+offset];
+      triplets[tPos].topRadius = spTcompMatPerSpM[threadIdx.x+offset+(*nSpTcompPerSpM_Max)*3];
+      triplets[tPos].impactParameter = impact[threadIdx.x+offset];
+      triplets[tPos].invHelixDiameter = invHelix[threadIdx.x+offset];
+      */
+
+      triplets[tPos].weight = 0;
+      triplets[tPos].bIndex = BcompIndex[blockIdx.x];
+      triplets[tPos].tIndex = TcompIndex[threadIdx.x+offset];
+      triplets[tPos].topRadius = spTcompMatPerSpM[threadIdx.x+offset+(*nSpTcompPerSpM_Max)*3];
+      triplets[tPos].impactParameter = impact;
+      triplets[tPos].invHelixDiameter = invHelix;
+    }
+    offset += blockDim.x;
+  }    
+  __syncthreads();
+
+  // floor the number of triplets
+  //if (threadIdx.x == 0 && *nTrplPerSpM > *nTrplPerSpMLimit){
+  //  *nTrplPerSpM = *nTrplPerSpMLimit;
+  //}    
+  //__syncthreads();
+  
+  // bubble sort tIndex
+  if (threadIdx.x < *nTrplPerSpB){    
+    for (int i = 0; i < *nTrplPerSpB/2+1; i++){
+      int j = threadIdx.x;            
+      if (j % 2 == 0 && j<*nTrplPerSpB-1){
+	if (triplets[j+1].tIndex < triplets[j].tIndex){
+	  Triplet tempVal = triplets[j];
+	  triplets[j] = triplets[j+1];	  
+	  triplets[j+1] = tempVal;	  
+	}
+      }
+      __syncthreads();
+      if (j % 2 == 1 && j<*nTrplPerSpB-1){
+	if (triplets[j+1].tIndex < triplets[j].tIndex){
+	  Triplet tempVal = triplets[j];
+	  triplets[j] = triplets[j+1];
+	  triplets[j+1] = tempVal;
+	}
+      }
+      __syncthreads();
+    }     
+  }
+
+  
+  if (threadIdx.x==0){
+    for (int i=0; i< *nTrplPerSpB; i++){
+      
+      int nCompatibleSeedR = 0;      
+      float lowerLimitCurv = triplets[i].invHelixDiameter - *deltaInvHelixDiameter;
+      float upperLimitCurv = triplets[i].invHelixDiameter + *deltaInvHelixDiameter;      
+      float& currentTop_r = triplets[i].topRadius;
+      float& weight = triplets[i].weight;
+      weight = -(triplets[i].impactParameter * (*impactWeightFactor));
+
+      //printf("%d  %f  %f  %f \n", i, triplets[i].topRadius, triplets[i].impactParameter, triplets[i].invHelixDiameter);
+      
+      for (int j=0; j< *nTrplPerSpB; j++){
+	
+	if (i==j){
+	  continue;
+	}	
+	// curvature difference within limits?
+	// TODO: how much slower than sorting all vectors by curvature
+	// and breaking out of loop? i.e. is vector size large (e.g. in jets?)
+	if (triplets[j].invHelixDiameter < lowerLimitCurv) {
+	  continue;
+	}
+	if (triplets[j].invHelixDiameter > upperLimitCurv) {
+	  continue;
+	}
+			
+	float& otherTop_r = triplets[j].topRadius;
+	float deltaR = currentTop_r - otherTop_r;
+	
+	if (fabsf(deltaR) < *deltaRMin) {
+	  continue;
+	}
+	
+	bool newCompSeed = true;
+	
+	for (int k=0; k<nCompatibleSeedR; k++) {
+	  // original ATLAS code uses higher min distance for 2nd found compatible
+	  // seed (20mm instead of 5mm)
+	  // add new compatible seed only if distance larger than rmin to all
+	  // other compatible seeds
+	  float& previousDiameter = compatibleSeedR[k];
+	  if (fabsf(previousDiameter - otherTop_r) < *deltaRMin) {
+	    newCompSeed = false;
+	    break;
+	  }
+	}
+	
+	if (newCompSeed) {
+	  compatibleSeedR[nCompatibleSeedR]=otherTop_r;
+	  nCompatibleSeedR++;	  
+	  weight += *compatSeedWeight;
+
+	  //printf("weight %f \n",triplets[i].weight);
+	}
+	if (nCompatibleSeedR >= *compatSeedLimit) {
+	  break;
+	}		
+      }
+      
+      int pos = atomicAdd(nTrplPerSpM,1);
+      
+      if (pos<*nTrplPerSpMLimit){
+	//printf("%d %d \n ",pos, *nTrplPerSpM);	
+	TripletsPerSpM[pos] = triplets[i];
+
+	//printf("weight2 %f \n",triplets[i].weight);
+      }      
     }
   }
-
-  // protects against division by 0
-  float dU = Ut - Ub;
-  if (dU == 0.) {
-    isPassed[threadIdx.x] = false;
-  }
-
-  // A and B are evaluated as a function of the circumference parameters
-  // x_0 and y_0
-  float A = (Vt - Vb) / dU;
-  float S2 = 1. + A * A;
-  float B = Vb - A * Ub;
-  float B2 = B * B;
-  // sqrtf(S2)/B = 2 * helixradius
-  // calculated radius must not be smaller than minimum radius
-  if (S2 < B2 * (*minHelixDiameter2)) {
-    isPassed[threadIdx.x] = false;
-  }
-  
-  // 1/helixradius: (B/sqrtf(S2))/2 (we leave everything squared)
-  float iHelixDiameter2 = B2 / S2;
-  // calculate scattering for p(T) calculated from seed curvature
-  float pT2scatter = 4 * iHelixDiameter2 * (*pT2perRadius);
-  // TODO: include upper pT limit for scatter calc
-  // convert p(T) to p scaling by sin^2(theta) AND scale by 1/sin^4(theta)
-  // from rad to deltaCotTheta
-  float p2scatter = pT2scatter * iSinTheta2;
-  // if deltaTheta larger than allowed scattering for calculated pT, skip
-  if ((deltaCotTheta2 - error2 > 0) &&
-      (dCotThetaMinusError2 >
-       p2scatter * (*sigmaScattering) * (*sigmaScattering))) {
-    isPassed[threadIdx.x] = false;
-  }
-  // A and B allow calculation of impact params in U/V plane with linear
-  // function
-  // (in contrast to having to solve a quadratic function in x/y plane)  
-  impact[threadIdx.x] = fabsf((A - B * rM) * rM);
-  invHelix[threadIdx.x] = B / sqrtf(S2);
-
-  if (impact[threadIdx.x] > (*impactMax)){
-    isPassed[threadIdx.x] = false;
-  }    
- 
-  __syncthreads();
-  
-  // The index will be different (and not deterministic) becuase of atomic operation
-  // It will be resorted after kernel call
-  if (isPassed[threadIdx.x] == true){
-    
-    int pos = atomicAdd(nTrplPerSpM,1);
-
-    if (pos<*nTrplPerSpMLimit){
-    
-    impactparameters[pos] = impact[threadIdx.x];
-    curvatures      [pos] = invHelix[threadIdx.x];
-    tIndex          [pos] = threadIdx.x + (*offset);
-    bIndex          [pos] = blockIdx.x;
-
-    }
-  }
-  
-  __syncthreads();
-
-  if (threadIdx.x == 0 && *nTrplPerSpM > *nTrplPerSpMLimit){
-    *nTrplPerSpM = *nTrplPerSpMLimit;
-  }
-  /*
-  __syncthreads();
-
-  topRadius[threadIdx.x] = spTcompMatPerSpM[threadIdx.x+(*offset)+(*nSpTcompPerSpM_Max)*3];
-  
-  // if two compatible seeds with high distance in r are found, compatible                             
-  // seeds span 5 layers                                                                               
-  // -> very good seed  
-  float lowerLimitCurv = invHelix[threadIdx.x] - (*deltaInvHelixDiameter);
-  float upperLimitCurv = invHelix[threadIdx.x] + (*deltaInvHelixDiameter);
-  float weight = -(impact[threadIdx.x] * (*impactWeightFactor));
-
-  for (int j=0; j<blockDim.x; j++){
-
-  }    
-  
-  //float ErT        = circTcompMatPerSpM[threadIdx.x+(*offset)+(*nSpTcompPerSpM_Max)*3];  
-  //float invHelixDiameter = invHelixDiameterVec[i];
-  //float lowerLimitCurv = invHelixDiameter - m_cfg.deltaInvHelixDiameter;
-  //float upperLimitCurv = invHelixDiameter + m_cfg.deltaInvHelixDiameter;
-  //float currentTop_r = topSpVec[i]->radius();
-  //float impact = impactParametersVec[i];
-  */
-
 }

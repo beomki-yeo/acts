@@ -45,6 +45,8 @@ SeedFilter<external_spacepoint_t>::filterSeeds_2SpFixed(
     float currentTop_r = topSpVec[i]->radius();
     float impact = impactParametersVec[i];
 
+    //std::cout << i << "  " << currentTop_r << "  " << impact << "  " << invHelixDiameter << std::endl;
+    
     float weight = -(impact * m_cfg.impactWeightFactor);
     for (size_t j = 0; j < topSpVec.size(); j++) {
       if (i == j) {
