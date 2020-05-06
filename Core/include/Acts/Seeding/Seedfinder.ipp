@@ -240,6 +240,7 @@ Seedfinder<external_spacepoint_t, platform_t>::createSeedsForGroup(
                            std::make_move_iterator(sameTrackSeeds.end()));
       }
     }
+    //std::cout << seedsPerSpM.size() << std::endl;
     m_config.seedFilter->filterSeeds_1SpFixed(seedsPerSpM, outputVec);
   }
   return outputVec;
