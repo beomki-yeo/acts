@@ -89,10 +89,6 @@ void searchTriplet( const dim3 grid, const dim3 block,
 		    const size_t* compatSeedLimit_cpu,
 		    const size_t* compatSeedLimit_cuda,
 		    int* nTrplPerSpM,
-		    int* tIndex,
-		    int* bIndex,
-		    float* curvatures,
-		    float* impactparameters,
 		    Triplet* TripletsPerSpM,
 		    cudaStream_t* stream
 		    );

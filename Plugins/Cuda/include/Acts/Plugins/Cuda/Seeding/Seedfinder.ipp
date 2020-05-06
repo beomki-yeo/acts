@@ -200,11 +200,6 @@ Seedfinder<external_spacepoint_t, Acts::Cuda>::createSeedsForGroup(
   //  Algorithm 3. Triplet Search (TS) & Seed filtering
   //------------------------------------------------------
 
-  // retreive middle-bottom doublet circ information
-  CpuMatrix<float> circBcompMatPerSpM_cpu(*nSpBcompPerSpM_Max_cpu.get(),
-                                          (*nSpMcomp_cpu.get()) * 6,
-                                          &circBcompMatPerSpM_cuda);
-
   const int nTrplPerSpMLimit =
     m_config.nAvgTrplPerSpBLimit * (*nSpBcompPerSpM_Max_cpu.get());
   CudaScalar<int> nTrplPerSpMLimit_cuda(&nTrplPerSpMLimit);
@@ -214,23 +209,10 @@ Seedfinder<external_spacepoint_t, Acts::Cuda>::createSeedsForGroup(
   
   CudaVector<int> nTrplPerSpM_cuda(*nSpMcomp_cpu.get());
   nTrplPerSpM_cuda.zeros();
-  CudaMatrix<int> TtrplIndex_cuda(nTrplPerSpMLimit, *nSpMcomp_cpu.get());
-  CudaMatrix<int> BtrplIndex_cuda(nTrplPerSpMLimit, *nSpMcomp_cpu.get());
-  CudaMatrix<float> curvatures_cuda(nTrplPerSpMLimit, *nSpMcomp_cpu.get());
-  CudaMatrix<float> impactparameters_cuda(nTrplPerSpMLimit,
-                                          *nSpMcomp_cpu.get());
-  CudaMatrix<Triplet> TripletsPerSpM_cuda(nTrplPerSpMLimit,
-					 *nSpMcomp_cpu.get());
-  
+  CudaMatrix<Triplet> TripletsPerSpM_cuda(nTrplPerSpMLimit,*nSpMcomp_cpu.get());  
   CpuVector<int> nTrplPerSpM_cpu(*nSpMcomp_cpu.get(), true);
   nTrplPerSpM_cpu.zeros();
-  CpuMatrix<int> TtrplIndex_cpu(nTrplPerSpMLimit, *nSpMcomp_cpu.get(), true);
-  CpuMatrix<int> BtrplIndex_cpu(nTrplPerSpMLimit, *nSpMcomp_cpu.get(), true);
-  CpuMatrix<float> curvatures_cpu(nTrplPerSpMLimit, *nSpMcomp_cpu.get(), true);
-  CpuMatrix<float> impactparameters_cpu(nTrplPerSpMLimit, *nSpMcomp_cpu.get(),
-                                        true);
-  CpuMatrix<Triplet> TripletsPerSpM_cpu(nTrplPerSpMLimit, *nSpMcomp_cpu.get(),
-				       true);  
+  CpuMatrix<Triplet> TripletsPerSpM_cpu(nTrplPerSpMLimit, *nSpMcomp_cpu.get(),true);  
   cudaStream_t cuStream;
   cudaStreamCreate(&cuStream);
   
@@ -272,9 +254,7 @@ Seedfinder<external_spacepoint_t, Acts::Cuda>::createSeedsForGroup(
 		    compatSeedLimit_cpu.get(),
 		    compatSeedLimit_cuda.get(),
 		    // output
-		    nTrplPerSpM_cuda.get(i_m), TtrplIndex_cuda.get(0, i_m),
-		    BtrplIndex_cuda.get(0, i_m), curvatures_cuda.get(0, i_m),
-		    impactparameters_cuda.get(0, i_m),
+		    nTrplPerSpM_cuda.get(i_m),
 		    TripletsPerSpM_cuda.get(0, i_m),
 		    &cuStream);
       nTrplPerSpM_cpu.copyD2H(nTrplPerSpM_cuda.get(i_m), 1, i_m, &cuStream);

@@ -78,10 +78,6 @@ __global__ void cuSearchTriplet(//const int*   offset,
 				const float* compatSeedWeight,
 				const size_t* compatSeedLimit,
 				int* nTrplPerSpM,
-				int* TtrplIndex,
-				int* BtrplIndex,
-				float* curvatures,
-				float* impactparameters,
 				Triplet* TripletsPerSpM
 				);
 
@@ -198,14 +194,9 @@ namespace Acts{
 		     const size_t* compatSeedLimit_cpu,	 // need to use USM
 		     const size_t* compatSeedLimit_cuda,		    
 		     int* nTrplPerSpM,
-		     int* TtrplIndex,
-		     int* BtrplIndex,
-		     float* curvatures,
-		     float* impactparameters,
 		     Triplet* TripletsPerSpM,
 		     cudaStream_t* stream
 		     ){    
-    //int sharedMemSize = (2*sizeof(int)+2*sizeof(float))*(*nSpTcompPerSpM_cpu);    
     int sharedMemSize = sizeof(Triplet)*(*nTrplPerSpBLimit_cpu);
     sharedMemSize += sizeof(float)*(*compatSeedLimit_cpu); 
     sharedMemSize += sizeof(int);
@@ -232,9 +223,6 @@ namespace Acts{
 				 compatSeedWeight,
 				 compatSeedLimit_cuda,
 				 nTrplPerSpM,
-				 TtrplIndex, BtrplIndex,
-				 curvatures,
-				 impactparameters,
 				 TripletsPerSpM
 				 );
     ACTS_CUDA_ERROR_CHECK( cudaGetLastError() );
@@ -547,10 +535,6 @@ __global__ void cuSearchTriplet(//const int*   offset,
 				const size_t* compatSeedLimit,
 				// triplet output
 				int* nTrplPerSpM,
-				int* TtrplIndex,
-				int* BtrplIndex,
-				float* curvatures,
-				float* impactparameters,
 				Triplet* TripletsPerSpM
 				){
   extern __shared__ Triplet sh[];
